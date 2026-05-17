@@ -1,125 +1,85 @@
-# Modulo encargado de RECIBIR mensajes desde WhatsApp (webhook entrante).
+# Modulo encargado de RECIBIR mensajes (handshake + procesamiento), agnostico al proveedor.
 '''
-Aca vive toda la logica que procesa lo que Meta nos envia.
+Este archivo es GENERICO: no sabe si esta hablando con Meta o con Twilio.
+Solo le pide al "provider" (obtenido del factory) que parsee el request entrante
+y que envie la respuesta.
 
-Hay dos cosas que Meta nos manda al webhook:
+Toda la logica especifica de cada proveedor vive en whatsapp/providers/meta.py
+o whatsapp/providers/twilio.py.
 
-1) HANDSHAKE (GET): cuando configuras el webhook por primera vez en Meta,
-   ellos hacen un GET con un challenge para verificar que la URL es tuya.
-   La funcion verificar_webhook() responde a esto.
+Si manana agregamos un tercer proveedor (ej: 360dialog), este archivo NO se toca.
+Solo creamos providers/dialog360.py.
 
-2) MENSAJES (POST): cuando un usuario te escribe por WhatsApp, Meta hace POST
-   con un JSON que describe el mensaje. La funcion procesar_mensaje_entrante() lo parsea
-   y dispara la respuesta.
-
-Esta version es de Etapa 1: por ahora hacemos eco (devolvemos el mismo texto recibido).
-En Etapa 3 cambiaremos esta logica para que llame al RAG y devuelva una respuesta inteligente.
+Esta es la magia del patron Strategy: el codigo cliente depende de una INTERFAZ ABSTRACTA,
+no de implementaciones concretas. En la tesis se defiende como "Inversion de Dependencias".
 '''
 
 
 # Importacion de modulos
 '''
-flask: importamos "request" para acceder al request HTTP entrante (query params, body, etc.).
-config: nuestras variables de entorno (token de verificacion).
-.sender: funciones de envio que estan en whatsapp/sender.py (misma carpeta).
+flask: importamos request para acceder al HTTP entrante.
+.providers: nuestro factory obtener_provider() que devuelve el provider segun el .env.
 '''
 from flask import request
-import config
-from .sender import armar_body_texto, enviar_a_meta
+from .providers import obtener_provider
 
 
 def verificar_webhook():
     '''
-    Responde al handshake GET de Meta cuando configuras el webhook por primera vez.
+    Maneja el GET inicial (handshake).
 
-    Flujo:
-    1) Meta hace GET /whatsapp?hub.verify_token=XXX&hub.challenge=YYY
-    2) Si XXX coincide con nuestro META_VERIFY_TOKEN, devolvemos YYY.
-    3) Si no coincide, devolvemos error 400.
+    Delegamos al provider:
+    - Meta: valida el hub.verify_token y devuelve el challenge.
+    - Twilio: no hace handshake, devuelve "OK".
 
-    Esta funcion REEMPLAZA a VerifyToken() de tu app.py original.
-    Diferencia clave: el token ya NO esta hardcodeado, viene del .env via config.
+    El codigo de aca no sabe ni le importa la diferencia.
     '''
-    try:
-        # Extraemos los parametros que Meta envia en la URL (query string).
-        # request.args.get(nombre) devuelve el valor o None si no existe.
-        token_recibido = request.args.get("hub.verify_token")
-        challenge = request.args.get("hub.challenge")
-
-        # Comparamos el token que mando Meta contra el nuestro (definido en .env).
-        if token_recibido == config.META_VERIFY_TOKEN:
-            print("Webhook verificado correctamente con Meta.")
-            # IMPORTANTE: hay que devolver el challenge en TEXTO PLANO, no como JSON.
-            return challenge
-        else:
-            # Token incorrecto: alguien intento configurar nuestro webhook sin saber el secreto.
-            print(f"Intento de verificacion con token incorrecto: {token_recibido}")
-            return "error", 400
-
-    except Exception as e:
-        # Cualquier error inesperado (parametros faltantes, etc.).
-        print(f"Excepcion en verificar_webhook: {e}")
-        return "error", 400
+    provider = obtener_provider()
+    return provider.verificar_webhook(request)
 
 
 def procesar_mensaje_entrante():
     '''
-    Procesa un mensaje POST que recibimos de Meta cuando un usuario nos escribe.
+    Procesa un POST entrante con un mensaje del usuario.
 
     Flujo:
-    1) Meta hace POST /whatsapp con un JSON enorme describiendo el mensaje.
-    2) Extraemos el numero del usuario y el texto que escribio.
-    3) Armamos una respuesta (en esta Etapa 1 es eco; en Etapa 3 sera la IA).
-    4) Enviamos la respuesta llamando a Graph API via enviar_a_meta().
-    5) Devolvemos "EVENT_RECEIVED" para que Meta sepa que recibimos el evento.
-
-    Esta funcion REEMPLAZA a ReceivedMessage() de tu app.py original.
-    En Etapa 1 conservamos el comportamiento de eco para validar que la reestructuracion
-    no rompio nada. Las mejoras de parsing y deduplicacion vienen en Etapa 2.
+    1) Pedimos al provider que parsee el request en formato normalizado.
+    2) Si es None (no era un mensaje de texto), devolvemos 200 y listo.
+    3) Si es un mensaje, armamos la respuesta (en etapa 1 es eco; en etapa 3 sera RAG).
+    4) Pedimos al provider que envie la respuesta al usuario.
+    5) Devolvemos 200 para que Meta/Twilio no reintente.
     '''
     try:
-        # Convierte el body JSON del POST en un diccionario Python.
-        received = request.get_json()
-        print(f"Mensaje recibido de Meta: {received}")
+        provider = obtener_provider()
 
-        # Navegacion del JSON anidado que envia Meta.
-        # Estructura: entry[0] -> changes[0] -> value -> messages[0] -> {from, text.body}
-        # IMPORTANTE: esta navegacion es FRAGIL (rompe si llega un audio o un status).
-        # En Etapa 2 la mejoraremos con parseo defensivo.
-        entry = received["entry"][0]
-        changes = entry["changes"][0]
-        value = changes["value"]
-        messages = value["messages"][0]
+        # Parseamos el request usando la logica especifica del provider activo
+        mensaje = provider.parsear_mensaje_entrante(request)
 
-        # Datos relevantes que vamos a usar para responder
-        numero = messages["from"]                    # numero del usuario que escribio
-        texto_usuario = messages["text"]["body"]      # contenido del mensaje
+        # Si no es un mensaje de texto procesable (audio, status, etc), respondemos 200 y listo
+        if mensaje is None:
+            return "EVENT_RECEIVED"
 
-        print(f"Numero: {numero} | Texto: {texto_usuario}")
+        print(f"[WEBHOOK] Numero: {mensaje['numero']} | Texto: {mensaje['texto']}")
 
         # === ETAPA 1: ECO ===
-        # Devolvemos el mismo texto que mando el usuario, con un prefijo aclaratorio.
-        # En Etapa 3 esta linea se reemplaza por algo como:
-        #     respuesta = rag.responder(texto_usuario)
-        respuesta = f"Esta es la respuesta a la pregunta: {texto_usuario}"
+        # Devolvemos el mismo texto que mando el usuario.
+        # En etapa 3 esta linea se reemplaza por: respuesta = rag.responder(mensaje['texto'])
+        respuesta = f"Esta es la respuesta a la pregunta: {mensaje['texto']}"
 
-        # Armar el body JSON que Meta espera y enviarlo
-        body = armar_body_texto(respuesta, numero)
-        envio_ok = enviar_a_meta(body)
+        # Pedimos al provider que envie la respuesta. Provider sabe como hacerlo.
+        envio_ok = provider.enviar_mensaje(mensaje["numero"], respuesta)
 
         if envio_ok:
-            print("Respuesta enviada correctamente al usuario.")
+            print("[WEBHOOK] Respuesta enviada correctamente.")
         else:
-            print("Fallo el envio de la respuesta al usuario.")
+            print("[WEBHOOK] Fallo el envio de la respuesta.")
 
-        # Respuesta OBLIGATORIA a Meta: confirma que recibimos el evento.
-        # Si no devolvemos esto rapido, Meta reintenta el mensaje (causa duplicados).
+        # Respuesta OBLIGATORIA: confirma que recibimos el evento.
+        # Si no devolvemos 200 rapido, el proveedor reintenta el mensaje (causa duplicados).
         return "EVENT_RECEIVED"
 
     except Exception as e:
-        # Excepcion comun en esta etapa: el JSON no era de un mensaje de texto
-        # (puede ser un status de "entregado/leido", un audio, una imagen, etc.).
-        # Devolvemos igual "EVENT_RECEIVED" porque Meta espera 200; si devolvemos error
-        # entra en loop de reintentos.
-        print(f"Excepcion procesando mensaje: {e}")
+        # Cualquier excepcion no controlada: la logueamos pero devolvemos 200 igual
+        # para que el proveedor no entre en loop de reintentos.
+        print(f"[WEBHOOK] Excepcion inesperada: {e}")
         return "EVENT_RECEIVED"

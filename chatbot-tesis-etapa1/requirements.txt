@@ -19,3 +19,8 @@ requests==2.32.3
 
 # Carga variables del archivo .env al entorno (os.environ).
 python-dotenv==1.0.1
+
+# SDK oficial de Twilio. Se usa si WHATSAPP_PROVIDER=twilio.
+# Si solo vas a usar Meta igual lo dejamos instalado para que el codigo
+# pueda IMPORTAR la clase TwilioProvider sin error (aunque nunca se instancie).
+twilio==9.3.7
