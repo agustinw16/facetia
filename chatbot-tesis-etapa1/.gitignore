@@ -1,0 +1,48 @@
+# --- ENTORNOS VIRTUALES ---
+# Carpetas donde se instalan las dependencias de Python.
+# NUNCA deben ir al repo: son pesadas, dependen del sistema operativo y se reconstruyen con pip.
+whatsapp_env/
+venv/
+env/
+.venv/
+
+# --- CACHE DE PYTHON ---
+# Python genera estos archivos automaticamente para acelerar la ejecucion.
+# No aportan nada al repo y cambian todo el tiempo.
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# --- SECRETOS Y VARIABLES DE ENTORNO ---
+# El archivo .env tiene tokens, contraseñas y API keys.
+# Si esto sube al repo, cualquiera que vea el GitHub tiene acceso a tu cuenta de Meta/OpenAI.
+.env
+.env.local
+.env.production
+
+# --- DATOS PROCESADOS ---
+# Los embeddings y chunks generados por el script de ingesta.
+# Se regeneran corriendo el script, no hace falta versionarlos.
+data/processed/
+
+# --- ARCHIVOS DEL EDITOR ---
+# Configuraciones personales de VS Code, PyCharm, etc. No tienen que afectar al repo.
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- LOGS ---
+# Archivos de log generados durante la ejecucion.
+*.log
+logs/
+
+# --- SISTEMA OPERATIVO ---
+# Archivos que crean Windows y macOS para indexar carpetas.
+Thumbs.db
+.DS_Store
+
+# --- PLAN del proyecto ---
+README.md
+README.pdf

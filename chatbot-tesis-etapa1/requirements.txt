@@ -1,0 +1,21 @@
+# Dependencias de Python para la Etapa 1.
+# Las versiones estan PINNEADAS (con ==) para que el proyecto sea reproducible:
+# si Render o tu PC instalan estas mismas versiones, el comportamiento es identico.
+#
+# Para instalar localmente:
+#   python -m venv venv
+#   .\venv\Scripts\activate         (Windows PowerShell)
+#   pip install -r requirements.txt
+
+# Framework web. Define rutas HTTP y maneja request/response.
+flask==3.0.3
+
+# Servidor HTTP de produccion (Render lo usa para correr la app).
+# Mucho mas estable y performante que el servidor de desarrollo de Flask.
+gunicorn==23.0.0
+
+# Cliente HTTP para hacer requests a APIs externas (Graph API de Meta).
+requests==2.32.3
+
+# Carga variables del archivo .env al entorno (os.environ).
+python-dotenv==1.0.1
