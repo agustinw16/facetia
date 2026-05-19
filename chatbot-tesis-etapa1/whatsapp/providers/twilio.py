@@ -30,7 +30,6 @@ config: variables de entorno (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHAT
 '''
 from twilio.rest import Client
 import config
-from ..utils import formatear_numero
 from .base import WhatsAppProvider
 
 
@@ -124,14 +123,14 @@ class TwilioProvider(WhatsAppProvider):
         (ej: "whatsapp:+14155238886" del sandbox).
         '''
         try:
-            # Formatear el numero (quita el "9" extra de celulares argentinos)
-            numero_formateado = formatear_numero(numero)
-
-            # Llamada al SDK de Twilio. Internamente hace un POST a la API de Twilio.
+            # Twilio ya nos manda el numero correcto (ej: "5493815869925").
+            # NO aplicamos formatear_numero() porque esa funcion quita el "9" que
+            # Meta agrega artificialmente en numeros argentinos. Twilio no tiene ese
+            # problema: el numero que manda en "From" es exactamente al que hay que responder.
             message = self.client.messages.create(
                 from_=config.TWILIO_WHATSAPP_FROM,  # ej: "whatsapp:+14155238886"
                 body=texto,
-                to=f"whatsapp:+{numero_formateado}",
+                to=f"whatsapp:+{numero}",
             )
 
             # message.sid es el ID que Twilio asigna al mensaje saliente.
