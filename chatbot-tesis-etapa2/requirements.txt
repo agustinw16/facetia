@@ -1,0 +1,39 @@
+# Dependencias de Python para la Etapa 2.
+# Las versiones estan PINNEADAS (con ==) para que el proyecto sea reproducible:
+# si Render o tu PC instalan estas mismas versiones, el comportamiento es identico.
+#
+# Para instalar localmente:
+#   python -m venv venv
+#   .\venv\Scripts\activate         (Windows PowerShell)
+#   pip install -r requirements.txt
+
+# Framework web. Define rutas HTTP y maneja request/response.
+flask==3.0.3
+
+# Servidor HTTP de produccion (Render lo usa para correr la app).
+# Mucho mas estable y performante que el servidor de desarrollo de Flask.
+gunicorn==23.0.0
+
+# Cliente HTTP para hacer requests a APIs externas (Graph API de Meta).
+requests==2.32.3
+
+# Carga variables del archivo .env al entorno (os.environ).
+python-dotenv==1.0.1
+
+# SDK oficial de Twilio. Se usa si WHATSAPP_PROVIDER=twilio.
+# Si solo vas a usar Meta igual lo dejamos instalado para que el codigo
+# pueda IMPORTAR la clase TwilioProvider sin error (aunque nunca se instancie).
+twilio==9.3.7
+
+# === NUEVO EN ETAPA 2: persistencia con base de datos relacional ===
+
+# ORM (Object-Relational Mapper) para hablar con la base de datos sin escribir SQL crudo.
+# Permite usar el MISMO codigo Python para SQLite (desarrollo) y Postgres (Render).
+sqlalchemy==2.0.35
+
+# Driver de Postgres para Python.
+# Lo necesita SQLAlchemy para conectarse a Postgres en Render.
+# Si solo usas SQLite localmente no se usa, pero lo dejamos instalado para
+# que el deploy a Render no rompa cuando intente importar.
+# "binary" significa que viene compilado, sin necesidad de tener compilador C en el sistema.
+psycopg2-binary==2.9.10

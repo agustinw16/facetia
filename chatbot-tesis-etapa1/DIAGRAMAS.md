@@ -36,63 +36,84 @@ Si pusheás este archivo a un repo público, GitHub renderiza los Mermaid autom�
 
 ```mermaid
 flowchart TD
-    U([Usuario en WhatsApp]) -->|1. envia mensaje| WA[WhatsApp App]
-    WA -->|2. transmite| PROV{WHATSAPP_PROVIDER<br/>config}
-    
-    PROV -->|meta| META[Meta Cloud API]
-    PROV -->|twilio| TWILIO[Twilio API]
-    
-    META -->|3. POST webhook| BACK[Tu Backend Flask<br/>en Render]
+    U([Usuario en WhatsApp])
+    WA([WhatsApp App])
+    PROV{WHATSAPP_PROVIDER<br/>config}
+    META[Meta Cloud API]
+    TWILIO[Twilio API]
+    BACK[Backend Flask<br/>en Render]
+    PROVIDER_IN["WhatsApp Proveedor<br/>(Meta o Twilio)"]
+    SIG{Firma valida?<br/>HMAC / Twilio sig}
+    ERR[401 Unauthorized]
+    DEDUP{Ya procesado<br/>este message_id?}
+    OK200a[200 OK<br/>no procesa]
+    RESP200[Responde 200<br/>inmediatamente]
+    PROC[Procesador]
+    DB[(PostgreSQL<br/>tabla mensajes)]
+    EMB[OpenAI<br/>text-embedding-3-small]
+    VDB[(Vector DB<br/>Qdrant / ChromaDB)]
+    LLM[OpenAI GPT-4o-mini]
+    PROVIDER_OUT["WhatsApp Proveedor<br/>(Meta o Twilio)"]
+    ENVIO{Provider activo}
+    GRAPH[Graph API<br/>send message]
+    TSDK[Twilio SDK<br/>send message]
+
+    U -->|1. envia mensaje| WA
+    WA -->|2. transmite| PROV
+    PROV -->|si es Meta| META
+    PROV -->|si es Twilio| TWILIO
+    META -->|3. POST webhook| BACK
     TWILIO -->|3. POST webhook| BACK
 
-    BACK -->|4. obtener_provider| PROVIDER["WhatsApp Provider<br/>(Meta o Twilio)<br/>del factory"]
-    BACK -->|5. validar request| SIG{Firma valida?<br/>HMAC / Twilio sig}
-    SIG -->|no| ERR[401 Unauthorized]
-    SIG -->|si| DEDUP{Ya procesado<br/>este message_id?}
+    BACK <-->|4. obtener_provider<br/>para parsear mensaje entrante| PROVIDER_IN
+    BACK -->|5. validar request| SIG
+    SIG -->|no| ERR
+    SIG -->|si| DEDUP
+    DEDUP -->|si| OK200a
+    DEDUP -->|no| RESP200
+    RESP200 -->|6. dispara el background| PROC
 
-    DEDUP -->|si| OK200a[200 OK<br/>no procesa]
-    DEDUP -->|no| RESP200[Responde 200<br/>inmediatamente]
+    PROC -->|7. guarda mensaje| DB
+    PROC -->|8. embebe pregunta recibida| EMB
+    EMB -->|OpenAI devuelve un<br/>vector de 1536 num| PROC
+    PROC -->|9. busca top-K chunks<br/>textos equivalentes al vector| VDB
+    VDB -->|devuelve chunks<br/>coincidentes en texto| PROC
+    PROC -->|10. Arma pregunta + contexto| LLM
+    LLM -->|devuelve respuesta natural| PROC
 
-    RESP200 -->|6. dispara en background| WORKER[Worker / thread<br/>de procesamiento]
-
-    WORKER -->|7. guarda| DB[(PostgreSQL<br/>tabla mensajes)]
-    WORKER -->|8. embebe pregunta| EMB[OpenAI<br/>text-embedding-3-small]
-    EMB -->|vector 1536 dim| WORKER
-
-    WORKER -->|9. busca top-K chunks| VDB[(Vector DB<br/>Qdrant / ChromaDB)]
-    VDB -->|chunks relevantes| WORKER
-
-    WORKER -->|10. pregunta + contexto| LLM[OpenAI GPT-4o-mini]
-    LLM -->|respuesta natural| WORKER
-
-    WORKER -->|11. provider.enviar_mensaje| PROVIDER
-    PROVIDER -->|envia| ENVIO{Provider activo}
-    ENVIO -->|meta| GRAPH[Graph API<br/>send message]
-    ENVIO -->|twilio| TWILIO_SDK[Twilio SDK<br/>send message]
-    
-    GRAPH -->|transmite| META
-    TWILIO_SDK -->|transmite| TWILIO
-    
+    PROC -->|11. provider.enviar_mensaje| PROVIDER_OUT
+    PROVIDER_OUT -->|11. provider.enviar_mensaje| ENVIO
+    ENVIO -->|meta| GRAPH
+    ENVIO -->|twilio| TSDK
+    GRAPH -->|12. transmite| META
+    TSDK -->|12. transmite| TWILIO
     META -->|12. transmite| WA
     TWILIO -->|12. transmite| WA
     WA -->|13. respuesta visible| U
-    
-    WORKER -->|14. guarda respuesta| DB
 
-    style U fill:#e1f5ff
-    style WA fill:#dcf8c6
-    style META fill:#fff4e1
-    style TWILIO fill:#fff4e1
-    style BACK fill:#f0e1ff
-    style PROVIDER fill:#f0e1ff
-    style WORKER fill:#f0e1ff
-    style DB fill:#ffe1e1
-    style VDB fill:#ffe1e1
-    style EMB fill:#e1ffe1
-    style LLM fill:#e1ffe1
-    style GRAPH fill:#fff4e1
-    style TWILIO_SDK fill:#fff4e1
-    style PROV fill:#fff9e1
+    PROC -->|14. guarda respuesta<br/>al mensaje recibido| DB
+
+    style U fill:#d5e8d4,stroke:#82b366
+    style WA fill:#d5e8d4,stroke:#82b366
+    style META fill:#fff4e1,stroke:#999
+    style TWILIO fill:#fff4e1,stroke:#999
+    style BACK fill:#f0e1ff,stroke:#999
+    style PROVIDER_IN fill:#f0e1ff,stroke:#999
+    style PROVIDER_OUT fill:#f0e1ff,stroke:#999
+    style PROC fill:#f0e1ff,stroke:#999
+    style EMB fill:#f0e1ff,stroke:#999
+    style TSDK fill:#f0e1ff,stroke:#999
+    style DB fill:#f8cecc,stroke:#6f0000,color:#000
+    style VDB fill:#f8cecc,stroke:#6f0000,color:#000
+    style LLM fill:#fff4e1,stroke:#999
+    style GRAPH fill:#fff4e1,stroke:#999
+    style PROV fill:#eeeeee,stroke:#999
+    style SIG fill:#eeeeee,stroke:#999
+    style DEDUP fill:#eeeeee,stroke:#999
+    style ENVIO fill:#eeeeee,stroke:#999
+    style ERR fill:#ffcccc,stroke:#36393d
+    style OK200a fill:#ffffff,stroke:#999
+    style RESP200 fill:#ffffff,stroke:#999
 ```
 
 ---
