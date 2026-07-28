@@ -45,6 +45,7 @@ psycopg2-binary==2.9.10
 #   2) LLM: generar la respuesta natural (modelo gpt-4o-mini).
 # Es el mismo cliente para ambas tareas, solo cambia el metodo que llamamos.
 openai==1.54.3
+httpx<0.28
 
 # Base de datos VECTORIAL. Guarda los vectores de los chunks y permite
 # buscar "los mas parecidos en significado" a una pregunta.
