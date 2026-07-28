@@ -45,13 +45,12 @@ psycopg2-binary==2.9.10
 #   2) LLM: generar la respuesta natural (modelo gpt-4o-mini).
 # Es el mismo cliente para ambas tareas, solo cambia el metodo que llamamos.
 openai==1.54.3
-httpx<0.28
 
 # Base de datos VECTORIAL. Guarda los vectores de los chunks y permite
 # buscar "los mas parecidos en significado" a una pregunta.
 # La usamos en modo LOCAL (guarda en una carpeta en disco), sin servidor aparte.
 # En etapa 6 se puede migrar a Qdrant Cloud para produccion.
-chromadb==0.4.24
+chromadb==0.5.20
 
 # Lector de PDFs. Extrae el texto de los archivos PDF que cargues en data/raw/
 # para poder cortarlo en chunks y embeberlo.
