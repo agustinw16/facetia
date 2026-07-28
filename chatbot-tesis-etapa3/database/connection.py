@@ -66,6 +66,7 @@ engine = create_engine(
     config.DATABASE_URL,
     connect_args=connect_args,
     echo=False,
+    pool_pre_ping=True,  # verifica la conexion antes de usarla; reconecta si Neon se despertó
 )
 
 
