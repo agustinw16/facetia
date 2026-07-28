@@ -51,7 +51,7 @@ httpx<0.28
 # buscar "los mas parecidos en significado" a una pregunta.
 # La usamos en modo LOCAL (guarda en una carpeta en disco), sin servidor aparte.
 # En etapa 6 se puede migrar a Qdrant Cloud para produccion.
-chromadb==0.5.20
+chromadb==0.4.24
 
 # Lector de PDFs. Extrae el texto de los archivos PDF que cargues en data/raw/
 # para poder cortarlo en chunks y embeberlo.
