@@ -1,0 +1,244 @@
+===============================================================================
+BASE DE CONOCIMIENTO - FACET UNT
+Facultad de Ciencias Exactas y Tecnologia - Universidad Nacional de Tucuman
+===============================================================================
+
+COMO MANTENER ESTE ARCHIVO (leer antes de editar)
+
+Este archivo alimenta al chatbot. Esta escrito en bloques de PREGUNTA + RESPUESTA
+porque el bot busca por SIGNIFICADO: cuanto mas se parezca el encabezado a como
+pregunta un estudiante mejor lo encuentra.
+
+Reglas para agregar o modificar informacion:
+
+1. Cada bloque arranca con "## " seguido de la pregunta, en la forma en que la
+   haria un estudiante. Si hay varias formas de preguntar lo mismo, ponerlas
+   todas en el mismo encabezado, una despues de otra.
+
+2. Cada bloque tiene que entenderse SOLO, sin leer el resto del archivo.
+   Repetir el nombre completo de la carrera o del area en cada bloque, aunque
+   suene redundante. El estudiante nunca ve este texto: solo lo lee el bot.
+
+3. NO usar "esta carrera", "el mismo", "dicho tramite". Siempre el nombre completo.
+
+4. NO usar tablas. Usar viñetas con guion.
+
+5. Bloques cortos: maximo 150 palabras. Si un tema da mas largo, partirlo en
+   varios bloques, cada uno con su propio encabezado.
+
+6. Despues de editar, correr desde la carpeta del proyecto:
+       python -m scripts.cargar_documentos --reset
+
+INDICE DE SECCIONES
+   1. Menu de temas disponibles
+   2. Datos generales de la facultad
+   3. Contactos
+   4. Oferta academica (listado de carreras)
+   5. Carreras en detalle
+   6. Ingreso
+
+===============================================================================
+SECCION 1 - MENU DE TEMAS DISPONIBLES
+===============================================================================
+
+## Que informacion puedo consultar? Tenes un menu de temas? De que temas sabes? Que me podes responder?
+Puedo ayudarte con informacion de la Facultad de Ciencias Exactas y Tecnologia
+(FACET) de la UNT. Los temas que manejo son:
+- Datos generales: horarios de atencion, ubicacion, pagina web y redes sociales
+- Contactos: correos de las distintas areas de la facultad
+- Carreras: listado completo de carreras de pregrado y de grado
+- Ingreso: quien puede ingresar, curso de nivelacion, prueba de suficiencia y fechas
+Preguntame directamente lo que necesites saber sobre cualquiera de esos temas.
+
+===============================================================================
+SECCION 2 - DATOS GENERALES DE LA FACULTAD
+===============================================================================
+
+## Cual es el horario de atencion de la FACET? A que hora abre la facultad? Hasta que hora esta abierta la facultad?
+La FACET atiende de lunes a viernes de 7:00 a 21:00 horas.
+
+## Donde queda la FACET? Cual es la direccion de la facultad? Como llego a la facultad?
+La FACET esta ubicada en Avenida Independencia 1900, San Miguel de Tucuman,
+provincia de Tucuman, Argentina.
+
+## Cual es la pagina web oficial de la FACET? Donde puedo ver el sitio de la facultad?
+La pagina web oficial de la FACET es https://www.facet.unt.edu.ar/
+
+## Cuales son las redes sociales de la FACET? Tiene Instagram la facultad?
+La FACET tiene cuenta oficial de Instagram en
+https://www.instagram.com/facetoficial.unt/
+La pagina web oficial de la FACET es https://www.facet.unt.edu.ar/
+
+## Que es FACET Virtual? Donde entro al campus virtual? Como accedo a las aulas virtuales?
+FACET Virtual es la plataforma de aulas virtuales de la FACET, donde se publican
+los materiales y las actividades de las materias. Se accede desde
+https://facetvirtual.facet.unt.edu.ar/inicial/
+
+## Que es SIU Guarani? Donde me inscribo a materias y examenes? Como veo mis notas?
+SIU Guarani es el sistema de gestion academica de la UNT. Se usa para
+inscribirse a materias y examenes y para consultar el historial academico.
+Se accede desde https://guarani.unt.edu.ar/
+
+===============================================================================
+SECCION 3 - CONTACTOS
+===============================================================================
+
+## Cuales son los correos de contacto de la FACET? Como me comunico con la facultad?
+Los correos de contacto de la FACET son:
+- Consultas generales: consultas-facet@herrera.unt.edu.ar
+- Area Ingreso: ingresofacet@herrera.unt.edu.ar
+- Secretaria de Bienestar Estudiantil: sbe.facet@herrera.unt.edu.ar
+- Area Comunicaciones: areacomunicacion@herrera.unt.edu.ar
+
+## Como contacto al Area de Ingreso de la FACET? A quien le pregunto por el ingreso?
+El correo del Area Ingreso de la FACET es ingresofacet@herrera.unt.edu.ar
+Es el contacto para consultas sobre el ingreso, el curso de nivelacion y la
+prueba de suficiencia.
+
+## Como contacto a la Secretaria de Bienestar Estudiantil? Donde pregunto por becas o ayuda al estudiante?
+El correo de la Secretaria de Bienestar Estudiantil de la FACET es
+sbe.facet@herrera.unt.edu.ar
+
+## Como contacto al Area de Comunicaciones de la FACET?
+El correo del Area Comunicaciones de la FACET es
+areacomunicacion@herrera.unt.edu.ar
+
+## Donde envio una consulta general a la FACET?
+Para consultas generales, el correo de la FACET es
+consultas-facet@herrera.unt.edu.ar
+
+===============================================================================
+SECCION 4 - OFERTA ACADEMICA
+===============================================================================
+
+## Que carreras se dictan en la FACET? Que carreras puedo estudiar en la facultad? Cuales son todas las carreras?
+La FACET dicta 5 carreras de pregrado (cortas) y 16 carreras de grado.
+Las carreras de pregrado de la FACET son: Programador Universitario, Tecnico
+Universitario en Tecnologia Azucarera e Industrias Derivadas, Bachiller
+Universitario en Fisica, Tecnicatura Universitaria en Fisica y Tecnicatura
+Universitaria en Fisica Ambiental.
+Las carreras de grado de la FACET son: Agrimensura, Disenador en Iluminacion,
+Ingenieria Azucarera, Ingenieria Biomedica, Ingenieria Civil, Ingenieria
+Electrica, Ingenieria Electronica, Ingenieria en Computacion, Ingenieria en
+Informatica, Ingenieria Geodesica y Geofisica, Ingenieria Industrial,
+Ingenieria Mecanica, Ingenieria Quimica, Licenciatura en Fisica, Licenciatura
+en Informatica y Licenciatura en Matematica.
+
+## Que carreras cortas tiene la FACET? Que carreras de pregrado hay? Hay tecnicaturas en la facultad?
+La FACET tiene 5 carreras de pregrado o cortas:
+- Programador Universitario
+- Tecnico Universitario en Tecnologia Azucarera e Industrias Derivadas
+- Bachiller Universitario en Fisica
+- Tecnicatura Universitaria en Fisica
+- Tecnicatura Universitaria en Fisica Ambiental
+
+## Que carreras de grado tiene la FACET? Que ingenierias se pueden estudiar? Que licenciaturas hay?
+La FACET tiene 16 carreras de grado:
+- Agrimensura
+- Disenador en Iluminacion
+- Ingenieria Azucarera
+- Ingenieria Biomedica
+- Ingenieria Civil
+- Ingenieria Electrica
+- Ingenieria Electronica
+- Ingenieria en Computacion
+- Ingenieria en Informatica
+- Ingenieria Geodesica y Geofisica
+- Ingenieria Industrial
+- Ingenieria Mecanica
+- Ingenieria Quimica
+- Licenciatura en Fisica
+- Licenciatura en Informatica
+- Licenciatura en Matematica
+
+===============================================================================
+SECCION 5 - CARRERAS EN DETALLE
+===============================================================================
+NOTA PARA EL ADMINISTRADOR: por ahora solo esta detallada Ingenieria en
+Computacion. Para agregar otra carrera, copiar el bloque de abajo y reemplazar
+el nombre de la carrera en TODOS los encabezados y en TODAS las respuestas.
+-------------------------------------------------------------------------------
+
+--- Ingenieria en Computacion ---
+
+## Que es la carrera de Ingenieria en Computacion? Dame informacion de Ingenieria en Computacion. Contame sobre Ing en Computacion.
+La carrera de Ingenieria en Computacion de la FACET dura 4 anos y medio y
+otorga el titulo de Ingeniero en Computacion. El plan de estudios de Ingenieria
+en Computacion tiene 42 materias. Un Ingeniero en Computacion disena, desarrolla
+e integra hardware y software para crear soluciones modernas que utilizan
+comunicaciones, inteligencia artificial y automatizacion para resolver problemas
+complejos de la vida cotidiana.
+
+## Cuanto dura la carrera de Ingenieria en Computacion? Cuantos anos tiene Ing en Computacion?
+La carrera de Ingenieria en Computacion de la FACET dura 4 anos y medio.
+
+## Que hace un Ingeniero en Computacion? De que trabaja un Ingeniero en Computacion? Que salida laboral tiene Ingenieria en Computacion?
+Un Ingeniero en Computacion disena, desarrolla e integra hardware y software,
+para crear soluciones modernas que utilizan comunicaciones, inteligencia
+artificial y automatizacion para resolver problemas complejos de la vida
+cotidiana.
+
+## Que titulo otorga la carrera de Ingenieria en Computacion? Que titulo obtengo al terminar Ing en Computacion?
+La carrera de Ingenieria en Computacion de la FACET otorga el titulo de
+Ingeniero en Computacion.
+
+## Cuantas materias tiene la carrera de Ingenieria en Computacion? Cuantas materias hay que rendir en Ing en Computacion?
+El plan de estudios de Ingenieria en Computacion de la FACET tiene 42 materias.
+
+===============================================================================
+SECCION 6 - INGRESO
+===============================================================================
+
+## Quien puede ingresar a la FACET? Quien es considerado aspirante? Puedo anotarme si debo materias del secundario?
+Se considera aspirante a ingresar a la FACET a todo interesado que haya
+completado el nivel secundario, incluidos los que deban alguna materia para
+obtener el titulo, y tambien a todo interesado que este cursando el ultimo ano
+del nivel secundario.
+
+## Como es el ingreso a la FACET? Que tengo que hacer para ingresar a la facultad? Como me anoto en la facultad?
+Para ingresar a la FACET, el aspirante puede optar por distintas formas de
+nivelacion. Una opcion es cumplir con los requisitos del Curso de Nivelacion en
+Matematicas, que puede tomarse en cualquiera de las instancias y modalidades que
+se ofrecen. La otra opcion es rendir una Prueba de Suficiencia, que se ofrece en
+dos o tres momentos del ano.
+Mas informacion sobre el ingreso a la FACET en
+https://www.facet.unt.edu.ar/ingreso/
+Consultas al correo del Area Ingreso: ingresofacet@herrera.unt.edu.ar
+
+## Que es el Curso de Nivelacion en Matematicas de la FACET? Hay que hacer un curso de ingreso?
+El Curso de Nivelacion en Matematicas es una de las dos formas de nivelacion
+para ingresar a la FACET. Se puede tomar en cualquiera de las instancias y
+modalidades que se ofrecen durante el ano. La alternativa al Curso de Nivelacion
+en Matematicas es rendir la Prueba de Suficiencia.
+
+## Que es la Prueba de Suficiencia de la FACET? Puedo ingresar sin hacer el curso de nivelacion?
+La Prueba de Suficiencia es la alternativa al Curso de Nivelacion en Matematicas
+para ingresar a la FACET. La Prueba de Suficiencia se ofrece en dos o tres
+momentos del ano. Para conocer las fechas exactas, consultar en
+https://www.facet.unt.edu.ar/ingreso/ o escribir a
+ingresofacet@herrera.unt.edu.ar
+
+## Cuando es el proximo Curso de Nivelacion de la FACET? Cuando empieza el curso de ingreso? Cuanto dura el curso de nivelacion?
+El proximo Curso de Nivelacion de la FACET corresponde al periodo
+Septiembre / Noviembre 2026.
+- Inicio: semana del 7 de Septiembre de 2026
+- Duracion: 12 semanas
+- Carga horaria semanal: 3 clases de 2 horas
+- Modalidad: presencial en el Gran San Miguel de Tucuman, o virtual para el
+  interior de Tucuman y otras provincias
+
+## Cuando me puedo inscribir al Curso de Nivelacion de la FACET? Hasta cuando hay tiempo de anotarse al ingreso?
+La inscripcion online al Curso de Nivelacion de la FACET del periodo
+Septiembre / Noviembre 2026 esta abierta desde el 10 de Agosto hasta el
+4 de Septiembre de 2026.
+La inscripcion se realiza desde https://www.facet.unt.edu.ar/ingreso/
+
+## Que temas se evaluan en el ingreso a la FACET? Donde veo el programa del ingreso? Que tengo que estudiar para el ingreso?
+El programa completo que se evalua en el ingreso a la FACET esta publicado en
+https://www.facet.unt.edu.ar/ingreso/wp-content/uploads/sites/66/2026/08/Programa_Ingreso_2026.pdf
+
+## Donde encuentro mas informacion sobre el ingreso a la FACET?
+Toda la informacion sobre el ingreso a la FACET esta en
+https://www.facet.unt.edu.ar/ingreso/
+Tambien se pueden hacer consultas al correo del Area Ingreso:
+ingresofacet@herrera.unt.edu.ar

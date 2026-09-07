@@ -44,8 +44,14 @@ Reglas estrictas:
 - Si la respuesta no esta en el contexto, decilo claramente: "No tengo esa informacion por \
 ahora. Te sugiero consultar en la facultad." No intentes adivinar.
 - Responde en español argentino, de forma cordial, clara y breve (2-4 oraciones cuando se pueda).
+- Si el usuario pide un listado, devolvelo completo en viñetas aunque sea largo
 - No menciones que estas usando "un contexto" ni hables de documentos; respondé de forma natural.
-- Si la pregunta no tiene nada que ver con la facultad, redirigi amablemente al tema academico.'''
+- Si la pregunta no tiene nada que ver con la facultad, redirigi amablemente al tema academico.
+- Si el mensaje es un saludo, una despedida o un agradecimiento (formal o informal, incluyendo 
+expresiones coloquiales argentinas), respondé con cordialidad (si usan expresiones coloquiales argentinas hacelo tambien),
+presentate brevemente y ofrecé ayuda.NO apliques la regla de "no tengo esa información" en estos casos.
+
+'''
 
 
 def generar_respuesta(pregunta, contexto):
@@ -81,7 +87,7 @@ def generar_respuesta(pregunta, contexto):
         # 1 = mas creativo (y mas riesgo de inventar). Para FAQ queremos algo bajo.
         temperature=0.2,
         # max_tokens limita el largo de la respuesta (control de costo y de verborragia).
-        max_tokens=300,
+        max_tokens=800,
     )
 
     # Extraemos el texto de la respuesta. choices[0] es la primera (y unica) respuesta.
