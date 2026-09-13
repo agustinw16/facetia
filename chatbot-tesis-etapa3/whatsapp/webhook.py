@@ -116,6 +116,14 @@ def _procesar_en_background(numero, texto, message_id):
 
             # c) Usuario + mensaje entrante.
             usuario = repositorio.obtener_o_crear_usuario(sesion, numero)
+
+            # === NUEVO: traer el historial ANTES de guardar el mensaje actual ===
+            # El orden importa: si lo trajeramos despues de guardar, el mensaje
+            # que acaba de llegar aparecería DOS veces (una en el historial y
+            # otra como pregunta actual).
+            historial = repositorio.obtener_historial(sesion, usuario.id)
+            print(f"[WEBHOOK-BG] Historial: {len(historial)} mensajes previos.")
+
             repositorio.guardar_mensaje_entrante(
                 sesion=sesion,
                 usuario_id=usuario.id,
@@ -127,7 +135,7 @@ def _procesar_en_background(numero, texto, message_id):
             # Antes era: respuesta = f"Esta es la respuesta a la pregunta: {texto}"
             # Ahora el bot responde con informacion real de los documentos.
             try:
-                respuesta = rag.responder(texto)
+                respuesta = rag.responder(texto, historial=historial)
             except Exception as e:
                 # Si el RAG falla (OpenAI caido, sin saldo, etc), no dejamos al usuario
                 # en silencio: le mandamos un mensaje generico y lo logueamos.

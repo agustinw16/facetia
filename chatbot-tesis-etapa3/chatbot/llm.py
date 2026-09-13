@@ -55,11 +55,15 @@ NO te presentes y NO enumeres lo que sabes hacer. En este casos NO apliques la r
 y si usan expresiones coloquiales argentinas hacelo tambien.
 - Si el mensaje es una DESPEDIDA (chau, nos vemos, hasta luego): despedite brevemente. NO te presentes. 
 En este casos NO apliques la regla de "no tengo esa informacion" y si usan expresiones coloquiales argentinas hacelo tambien.
+- Tenes acceso a los mensajes anteriores de esta conversacion. Usalos para
+entender preguntas que dependen de lo que se hablo antes: si el usuario pregunto
+por una carrera y despues escribe "y cuanto dura?", se refiere a ESA carrera.
+- Si ya te presentaste antes en esta conversacion, NO vuelvas a presentarte.
 
 '''
 
 
-def generar_respuesta(pregunta, contexto):
+def generar_respuesta(pregunta, contexto, historial=None):
     '''
     Genera la respuesta del bot usando GPT-4o-mini.
 
@@ -68,26 +72,38 @@ def generar_respuesta(pregunta, contexto):
         contexto: string con los chunks relevantes concatenados (lo arma rag.py).
                   Si esta vacio, igual llamamos al LLM, pero el system prompt hara que
                   responda "no tengo esa informacion".
+        historial: lista de dicts {"rol", "texto"} con los mensajes previos de
+                   esta conversacion, en orden cronologico. Si es None o esta
+                   vacia, el bot funciona igual que antes (sin memoria).
 
     Devuelve:
         string con la respuesta redactada por el modelo.
     '''
-    # Armamos el "mensaje de usuario" combinando el contexto y la pregunta.
-    # El modelo de chat recibe una lista de mensajes con roles:
-    #   - "system": las instrucciones fijas (quien es y como se comporta).
-    #   - "user": lo que "dice" el usuario (aca metemos contexto + pregunta).
+    # La API de chat recibe una LISTA de mensajes con roles. La armamos por partes.
+
+    # 1) El instructivo fijo del bot, siempre primero.
+    mensajes = [{"role": "system", "content": SYSTEM_PROMPT}]
+
+    # 2) La conversacion previa, si la hay.
+    #    Traducimos nuestro vocabulario neutro al de OpenAI:
+    #      "usuario" -> "user"       (lo que escribio la persona)
+    #      "bot"     -> "assistant"  (lo que respondio el bot)
+    if historial:
+        for turno in historial:
+            rol_openai = "user" if turno["rol"] == "usuario" else "assistant"
+            mensajes.append({"role": rol_openai, "content": turno["texto"]})
+
+    # 3) La pregunta actual, junto con el contexto recuperado de los documentos.
     mensaje_usuario = (
         f"Contexto disponible:\n{contexto}\n\n"
         f"Pregunta del estudiante: {pregunta}"
     )
+    mensajes.append({"role": "user", "content": mensaje_usuario})
 
     # Llamada a la API de chat.
     respuesta = cliente.chat.completions.create(
         model=config.OPENAI_LLM_MODEL,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": mensaje_usuario},
-        ],
+        messages=mensajes,
         # temperature controla la "creatividad": 0 = mas determinista y fiel al contexto,
         # 1 = mas creativo (y mas riesgo de inventar). Para FAQ queremos algo bajo.
         temperature=0.2,
@@ -98,3 +114,13 @@ def generar_respuesta(pregunta, contexto):
     # Extraemos el texto de la respuesta. choices[0] es la primera (y unica) respuesta.
     # .message.content es el texto generado. .strip() quita espacios sobrantes.
     return respuesta.choices[0].message.content.strip()
+
+'''GPT recibe algo asi: 
+
+[system]     Sos el asistente virtual de la facultad...
+[user]       dame info de ingenieria en computacion       ← historial
+[assistant]  La carrera dura 4 años y medio...            ← historial
+[user]       Contexto disponible: [...]                   ← pregunta actual
+             Pregunta del estudiante: y cuantas materias tiene?
+
+'''

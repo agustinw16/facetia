@@ -186,6 +186,24 @@ K=4 es un buen equilibrio para FAQ.
 '''
 RAG_TOP_K = int(os.getenv("RAG_TOP_K", 4))
 
+# === MEMORIA CONVERSACIONAL (NUEVO EN ETAPA 3) ===
+
+# Cuantos mensajes previos recordar en cada consulta.
+'''
+Cuenta mensajes SUELTOS, no pares. Con 6 se recuerdan las ultimas 3 idas y
+vueltas (3 del usuario + 3 del bot).
+Mas memoria = el bot sigue mejor el hilo, pero cada consulta manda mas texto
+a OpenAI. Para FAQ, 6 es un buen equilibrio.
+'''
+MEMORIA_MAX_MENSAJES = int(os.getenv("MEMORIA_MAX_MENSAJES", 6))
+
+# Cuanto tiempo hacia atras mirar, en minutos.
+'''
+Si alguien escribio hace tres semanas y hoy pregunta otra cosa, ese historial
+viejo NO es conversacion: es ruido que puede confundir al modelo.
+Con 60 minutos solo se recuerda lo hablado en la ultima hora.
+'''
+MEMORIA_VENTANA_MINUTOS = int(os.getenv("MEMORIA_VENTANA_MINUTOS", 60))
 
 # === SERVIDOR ===
 

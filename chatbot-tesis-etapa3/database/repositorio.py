@@ -17,10 +17,12 @@ Asi varias operaciones pueden compartir la MISMA transaccion.
 # Importacion de modulos
 '''
 datetime: para actualizar ultimo_visto del usuario.
+timedetal: permite calcular la diferencia entre dos fechas
 .models: las clases Usuario y Mensaje definidas en models.py.
 '''
-from datetime import datetime
+from datetime import datetime, timedelta
 from .models import Usuario, Mensaje
+import config
 
 
 def obtener_o_crear_usuario(sesion, telefono):
@@ -136,3 +138,64 @@ def guardar_mensaje_saliente(sesion, usuario_id, texto, estado="enviado"):
     sesion.add(mensaje)
     sesion.flush()
     return mensaje
+
+def obtener_historial(sesion, usuario_id, limite=None, ventana_minutos=None):
+    '''
+    Devuelve los ultimos mensajes de la conversacion de un usuario, en orden
+    cronologico (del mas viejo al mas nuevo).
+
+    Se usa para darle MEMORIA al bot: estos mensajes se le pasan al LLM junto
+    con la pregunta actual, asi entiende preguntas que dependen del contexto
+    previo ("y cuanto dura?", "y las materias?").
+
+    Parametros:
+        sesion: sesion SQLAlchemy abierta.
+        usuario_id: ID del usuario del que queremos el historial.
+        limite: cuantos mensajes traer. Si es None, usa config.MEMORIA_MAX_MENSAJES.
+        ventana_minutos: cuanto tiempo hacia atras mirar. Si es None, usa
+                         config.MEMORIA_VENTANA_MINUTOS.
+
+    Devuelve:
+        lista de dicts {"rol": "usuario"|"bot", "texto": "..."}.
+        Lista vacia si el usuario no tiene mensajes recientes.
+    '''
+    # Mismo patron que vector_db.buscar_similares(): si no nos pasan el valor,
+    # lo leemos de config. Asi las llamadas quedan cortas.
+    if limite is None:
+        limite = config.MEMORIA_MAX_MENSAJES
+    if ventana_minutos is None:
+        ventana_minutos = config.MEMORIA_VENTANA_MINUTOS
+
+    # Calculamos desde que momento contar. Usamos utcnow(Devuelve la fecha y hora UTC actuales) porque los modelos
+    # guardan creado_en con datetime.utcnow (ver models.py).
+    desde = datetime.utcnow() - timedelta(minutes=ventana_minutos)
+
+    # Saco de la base de datos los ultimos mensajes
+    filas = (
+        sesion.query(Mensaje)
+        .filter(Mensaje.usuario_id == usuario_id)
+        .filter(Mensaje.creado_en >= desde)
+        # Los mensajes con estado "fallido" nunca le llegaron al usuario,
+        # asi que no forman parte de la conversacion que el vivio.
+        .filter(Mensaje.estado != "fallido")
+        # Ordenamos del MAS NUEVO al mas viejo y cortamos: asi el limite
+        # se queda con los ULTIMOS N, no con los primeros N.
+        .order_by(Mensaje.creado_en.desc())
+        .limit(limite)
+        .all()
+    )
+
+    # Los dimos vuelta para poder limitar; ahora los reordenamos cronologicamente,
+    # que es como el LLM espera leer una conversacion.
+    filas.reverse()
+
+    # Traducimos de "lenguaje de base de datos" (entrante/saliente) a un
+    # lenguaje neutro (usuario/bot). Asi chatbot/llm.py NO necesita saber como
+    # se llaman las columnas de la BD, y se mantiene la separacion de capas.
+    return [
+        {
+            "rol": "usuario" if fila.direccion == "entrante" else "bot",
+            "texto": fila.texto,
+        }
+        for fila in filas
+    ]
