@@ -25,6 +25,8 @@ config: nuestras variables de entorno (META_ACCESS_TOKEN, META_API_URL).
 import requests
 import json
 import config
+import hmac
+import hashlib
 from ..utils import formatear_numero
 from .base import WhatsAppProvider
 
@@ -169,3 +171,58 @@ class MetaProvider(WhatsAppProvider):
         except Exception as e:
             print(f"[META] Excepcion al enviar mensaje: {e}")
             return False
+
+    def validar_autenticidad(self, request):
+        '''
+        Verifica que el POST realmente lo mando Meta, y no un tercero que
+        descubrio la URL del webhook y arma peticiones falsas a mano.
+
+        COMO FUNCIONA:
+        Meta firma cada webhook con el META_APP_SECRET (un secreto que SOLO
+        vos y Meta conocen). La firma viaja en el header X-Hub-Signature-256,
+        con el formato "sha256=<hex>".
+
+        Nosotros recalculamos esa MISMA firma de forma independiente, usando
+        el cuerpo crudo del request (los bytes exactos que llegaron) y nuestra
+        copia del secreto. Si las dos firmas coinciden, es matematicamente
+        imposible que el mensaje haya sido armado por alguien que no tenga
+        el secreto real.
+
+        Parametros:
+            request: el objeto Request de Flask.
+
+        Devuelve:
+            True si la firma es valida, False en cualquier otro caso.
+        '''
+        # El header tiene el formato "sha256=abcdef123...". Si no esta, no
+        # hay nada que validar: rechazamos directamente.
+        firma_recibida = request.headers.get("X-Hub-Signature-256", "")
+        if not firma_recibida:
+            print("[META] Falta el header X-Hub-Signature-256. Request rechazado.")
+            return False
+
+        # IMPORTANTE: usamos get_data(), que son los bytes CRUDOS del body,
+        # tal cual llegaron. NO usamos get_json() para esto: si reserializaramos
+        # el JSON ya parseado, el resultado podria no ser byte a byte identico
+        # al original (orden de claves, espacios, etc.) y la firma no coincidiria
+        # aunque el mensaje fuera legitimo.
+        cuerpo_crudo = request.get_data()
+
+        # Recalculamos la firma: HMAC-SHA256 del cuerpo, usando el App Secret
+        # como clave. .encode("utf-8") porque hmac necesita bytes, no un string.
+        firma_calculada = hmac.new(
+            key=config.META_APP_SECRET.encode("utf-8"),
+            msg=cuerpo_crudo,
+            digestmod=hashlib.sha256,
+        ).hexdigest()
+
+        # Armamos el string en el MISMO formato que manda Meta, para comparar
+        # manzanas con manzanas.
+        firma_esperada = f"sha256={firma_calculada}"
+
+        # hmac.compare_digest() en vez de "==": compara los strings en tiempo
+        # CONSTANTE, sin importar en que caracter difieren. Con un "==" normal,
+        # alguien podria medir cuanto tarda la comparacion y usar esa diferencia
+        # de tiempo para ir adivinando la firma caracter por caracter (se llama
+        # "timing attack"). Es una buena practica estandar al comparar secretos.
+        return hmac.compare_digest(firma_esperada, firma_recibida)

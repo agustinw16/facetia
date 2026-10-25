@@ -97,3 +97,28 @@ class WhatsAppProvider(ABC):
             True si se envio correctamente, False en caso de error.
         '''
         pass
+    
+    @abstractmethod
+    def validar_autenticidad(self, request):
+        '''
+        Verifica que el request realmente provenga del proveedor (Meta o
+        Twilio), y no sea una peticion falsa armada por un tercero que
+        descubrio la URL publica del webhook.
+
+        Esto es CRITICO: sin esta verificacion, cualquiera podria mandar
+        POSTs directos a nuestra URL simulando ser un mensaje de WhatsApp,
+        disparando el pipeline completo de RAG (embeddings + LLM) sin haber
+        escrito jamas por WhatsApp. Eso generaria gastos reales en OpenAI
+        sin ningun control.
+
+        Cada proveedor firma sus requests de forma distinta, por eso cada
+        uno implementa su propia logica de verificacion.
+
+        Parametros:
+            request: el objeto Request de Flask con el POST entrante.
+
+        Devuelve:
+            True si el request es autentico, False en caso contrario
+            (header ausente, secreto mal configurado, o firma que no coincide).
+        '''
+        pass

@@ -72,6 +72,17 @@ Por ahora no lo usamos directamente, pero lo dejamos cargado para etapas futuras
 '''
 META_PHONE_NUMBER_ID = os.getenv("META_PHONE_NUMBER_ID")
 
+# Secreto de la aplicacion (App Secret). Se usa para VERIFICAR que los
+# mensajes entrantes realmente los mando Meta.
+'''
+Es DISTINTO del META_ACCESS_TOKEN: el access token sirve para que NOSOTROS
+nos autentiquemos ante Meta al ENVIAR mensajes. El App Secret sirve al reves:
+para que NOSOTROS podamos confirmar que un mensaje ENTRANTE es autentico.
+
+Se obtiene en Meta for Developers -> tu app -> Configuracion -> Basica ->
+"Secreto de la aplicacion".
+'''
+META_APP_SECRET = os.getenv("META_APP_SECRET")
 
 # === TWILIO ===
 
@@ -247,6 +258,7 @@ def validar_configuracion():
             "META_VERIFY_TOKEN": META_VERIFY_TOKEN,
             "META_ACCESS_TOKEN": META_ACCESS_TOKEN,
             "META_API_URL": META_API_URL,
+            "META_APP_SECRET": META_APP_SECRET,
         }
     else:  # twilio
         requeridas = {

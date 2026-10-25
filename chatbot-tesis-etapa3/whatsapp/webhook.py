@@ -52,19 +52,30 @@ def verificar_webhook():
 def procesar_mensaje_entrante():
     '''
     Maneja el POST entrante. Su trabajo aca es MINIMO y RAPIDO:
-    1) Parsear el mensaje (usa request, por eso va en el hilo principal).
-    2) Si no es texto, responder 200 sin mas.
-    3) Disparar el procesamiento pesado en un THREAD aparte.
-    4) Responder 200 INMEDIATAMENTE (sin esperar al RAG).
+    1) Validar que el request sea autentico.
+    2) Parsear el mensaje (usa request, por eso va en el hilo principal).
+    3) Si no es texto, responder 200 sin mas.
+    4) Disparar el procesamiento pesado en un THREAD aparte.
+    5) Responder 200 INMEDIATAMENTE (sin esperar al RAG).
 
     Asi Meta/Twilio reciben el 200 en milisegundos y no reintentan.
     '''
     provider = obtener_provider()
 
-    # === 1) Parsear request (necesita "request", por eso aca y no en el thread) ===
+    # === 1) validar que el request sea autentico ===
+    # Antes de procesar NADA, confirmamos que este POST realmente lo mando
+    # el proveedor (Meta o Twilio) y no es una peticion falsa armada por
+    # alguien que descubrio la URL publica del webhook. Esto evita que
+    # terceros disparen el pipeline de RAG (que cuesta dinero en OpenAI)
+    # sin haber escrito jamas por WhatsApp.
+    if not provider.validar_autenticidad(request):
+        print("[WEBHOOK] Request rechazado: firma invalida o ausente.")
+        return "Forbidden", 403
+
+    # === 2) Parsear request (necesita "request", por eso aca y no en el thread) ===
     mensaje = provider.parsear_mensaje_entrante(request)
 
-    # === 2) Si no es mensaje de texto, no procesamos ===
+    # === 3) Si no es mensaje de texto, no procesamos ===
     if mensaje is None:
         return "EVENT_RECEIVED"
 
@@ -74,7 +85,7 @@ def procesar_mensaje_entrante():
 
     print(f"[WEBHOOK] Entrante -> Numero: {numero} | Texto: {texto} | MessageID: {message_id}")
 
-    # === 3) Disparar el trabajo pesado en segundo plano ===
+    # === 4) Disparar el trabajo pesado en segundo plano ===
     # target = la funcion a correr; args = los datos que le pasamos (strings simples).
     # daemon=True: el thread no impide que el proceso termine si hace falta.
     hilo = threading.Thread(
@@ -84,7 +95,7 @@ def procesar_mensaje_entrante():
     )
     hilo.start()
 
-    # === 4) Respuesta inmediata al proveedor (no espera al RAG) ===
+    # === 5) Respuesta inmediata al proveedor (no espera al RAG) ===
     return "EVENT_RECEIVED"
 
 

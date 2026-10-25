@@ -31,6 +31,7 @@ config: variables de entorno (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHAT
 from twilio.rest import Client
 import config
 from .base import WhatsAppProvider
+from twilio.request_validator import RequestValidator
 
 
 class TwilioProvider(WhatsAppProvider):
@@ -47,6 +48,12 @@ class TwilioProvider(WhatsAppProvider):
         Se llama UNA SOLA VEZ cuando el factory crea la instancia.
         '''
         self.client = Client(config.TWILIO_ACCOUNT_SID, config.TWILIO_AUTH_TOKEN)
+
+        # Validador de firmas de Twilio. Usa el mismo Auth Token que ya
+        # tenemos, pero para una tarea distinta: en vez de autenticarNOS
+        # a NOSOTROS ante Twilio, nos permite verificar que un request
+        # entrante realmente lo mando Twilio.
+        self.validador_firma = RequestValidator(config.TWILIO_AUTH_TOKEN)
 
     def verificar_webhook(self, request):
         '''
@@ -142,3 +149,43 @@ class TwilioProvider(WhatsAppProvider):
         except Exception as e:
             print(f"[TWILIO] Excepcion al enviar mensaje: {e}")
             return False
+
+    def validar_autenticidad(self, request):
+        '''
+        Verifica que el POST realmente lo mando Twilio, usando su propio
+        mecanismo de firma: un header X-Twilio-Signature, calculado sobre
+        la URL completa del webhook mas los parametros del formulario,
+        usando el Auth Token como clave.
+
+        Usamos la clase RequestValidator del SDK oficial de Twilio en vez de
+        calcular la firma a mano: Twilio mantiene esa logica actualizada y
+        asi evitamos reimplementar su algoritmo nosotros mismos.
+
+        NOTA: esta verificacion necesita la URL PUBLICA exacta que Twilio uso
+        para llegar al webhook (con https://). Si el servidor corre detras de
+        un proxy (como en Render), hay que confirmar que Flask vea el esquema
+        https correctamente, o la validacion puede fallar con requests legitimos.
+
+        Parametros:
+            request: el objeto Request de Flask.
+
+        Devuelve:
+            True si la firma es valida, False en caso contrario.
+        '''
+        firma_recibida = request.headers.get("X-Twilio-Signature", "")
+        if not firma_recibida:
+            print("[TWILIO] Falta el header X-Twilio-Signature. Request rechazado.")
+            return False
+
+        # request.form trae los datos del formulario que Twilio envia
+        # (From, Body, MessageSid, etc.), ya parseados en un dict.
+        es_valido = self.validador_firma.validate(
+            request.url,
+            request.form,
+            firma_recibida,
+        )
+
+        if not es_valido:
+            print("[TWILIO] Firma invalida. Request rechazado.")
+
+        return es_valido
