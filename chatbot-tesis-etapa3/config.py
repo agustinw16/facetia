@@ -227,6 +227,26 @@ bloque de texto enorme repetidamente para generar gasto.
 '''
 MAX_LARGO_MENSAJE = int(os.getenv("MAX_LARGO_MENSAJE", 500))
 
+# Cuantos mensajes como maximo aceptamos de un mismo numero en la ventana de tiempo.
+'''
+Aunque ya verificamos que los mensajes vienen realmente de Meta (Punto 1),
+un usuario REAL -o alguien con acceso al sandbox de Twilio- podria mandar
+muchos mensajes seguidos, a proposito o por un error de su lado. Cada uno
+dispara el pipeline completo de RAG, que cuesta dinero en OpenAI.
+
+La ventana es DESLIZANTE, no un contador fijo que se resetea a una hora en
+punto: "cuantos mensajes mando este numero en los ULTIMOS X minutos, contados
+desde ahora mismo". A medida que pasa el tiempo, los mensajes viejos van
+"saliendo" de la ventana solos, asi que no es un baneo permanente.
+
+10 mensajes por minuto alcanza de sobra para una conversacion normal, incluso
+rapida, pero frena un spam evidente.
+'''
+RATE_LIMIT_MAX_MENSAJES = int(os.getenv("RATE_LIMIT_MAX_MENSAJES", 10))
+
+# Ventana de tiempo (en minutos) para contar los mensajes del limite anterior.
+RATE_LIMIT_VENTANA_MINUTOS = int(os.getenv("RATE_LIMIT_VENTANA_MINUTOS", 1))
+
 
 # === SERVIDOR ===
 

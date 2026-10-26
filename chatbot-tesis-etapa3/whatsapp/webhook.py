@@ -15,6 +15,12 @@ Mantiene de etapa 2:
 - PERSISTENCIA de mensajes entrantes y salientes.
 - PARSEO DEFENSIVO (el provider devuelve None si no es texto).
 
+Cambios en ETAPA 4 (seguridad + calidad de conversacion):
+- Verificacion de firma del webhook (ver providers/meta.py y twilio.py).
+- Limite de largo de mensaje.
+- LOCK POR USUARIO: evita que mensajes rapidos del mismo numero se pisen
+  entre si leyendo un historial desactualizado.
+
 Sigue siendo GENERICO: no sabe si habla con Meta o Twilio.
 
 NOTA IMPORTANTE sobre threads y Flask:
@@ -175,7 +181,40 @@ def _procesar_en_background(numero, texto, message_id):
 
                 # c) Usuario + mensaje entrante.
                 usuario = repositorio.obtener_o_crear_usuario(sesion, numero)
-            
+
+                # === NUEVO (ETAPA 4): rate limiting ===
+                # Va ANTES del chequeo de largo: asi una rafaga de mensajes
+                # larguisimos tambien queda atrapada por el limite de cantidad,
+                # no solo una rafaga de mensajes cortos.
+                cantidad_reciente = repositorio.contar_mensajes_recientes(sesion, usuario.id)
+                if cantidad_reciente >= config.RATE_LIMIT_MAX_MENSAJES:
+
+                    if repositorio.ya_fue_advertido_rate_limit(sesion, usuario.id):
+                        # Ya le avisamos antes en esta ventana. Nos quedamos
+                        # callados: no gastamos en mandarle el cartel de nuevo.
+                        print(f"[WEBHOOK-BG] {numero} sigue superando el rate limit "
+                              f"({cantidad_reciente} msj en {config.RATE_LIMIT_VENTANA_MINUTOS} min). Silencio.")
+                        return
+
+                    # Primera vez que supera el limite en esta ventana: avisamos UNA vez.
+                    print(f"[WEBHOOK-BG] Rate limit alcanzado para {numero} "
+                          f"({cantidad_reciente} msj en {config.RATE_LIMIT_VENTANA_MINUTOS} min). "
+                          f"Avisando por primera vez.")
+                    unidad = "minuto" if config.RATE_LIMIT_VENTANA_MINUTOS == 1 else "minutos"
+                    respuesta_limite = (
+                        f"Estas escribiendo muy rapido. Esperá {config.RATE_LIMIT_VENTANA_MINUTOS} "
+                        f"{unidad} y volvé a intentar."
+                    )
+                    envio_ok = provider.enviar_mensaje(numero, respuesta_limite)
+                    repositorio.guardar_mensaje_saliente(
+                        sesion=sesion,
+                        usuario_id=usuario.id,
+                        texto=respuesta_limite,
+                        estado="rechazado_rate_limit",
+                    )
+                    sesion.commit()
+                    return
+
                 # === NUEVO (Etapa 4): limite de largo del mensaje ===
                 # Si el mensaje es demasiado largo, lo registramos igual (para
                 # tener el historial completo) pero NO lo mandamos al RAG: le

@@ -184,6 +184,8 @@ def obtener_historial(sesion, usuario_id, limite=None, ventana_minutos=None):
         # Los "rechazado_largo" fueron cortados por el limite de largo: no
         # son intercambios reales, no deben contaminar la memoria del LLM.
         .filter(Mensaje.estado != "rechazado_largo")
+        # Los "rechazado_rate_limit" son los que excedieron el limite por minuto de mensajes
+        .filter(Mensaje.estado != "rechazado_rate_limit")
         # Ordenamos del MAS NUEVO al mas viejo y cortamos: asi el limite
         # se queda con los ULTIMOS N, no con los primeros N.
         .order_by(Mensaje.creado_en.desc())
@@ -205,3 +207,77 @@ def obtener_historial(sesion, usuario_id, limite=None, ventana_minutos=None):
         }
         for fila in filas
     ]
+
+def contar_mensajes_recientes(sesion, usuario_id, ventana_minutos=None):
+    '''
+    Cuenta cuantos mensajes ENTRANTES mando un usuario en los ultimos minutos.
+
+    Se usa para el rate limiting: si un numero manda demasiados mensajes en
+    poco tiempo, cortamos antes de llamar al RAG (que es lo que cuesta plata).
+
+    La ventana es DESLIZANTE: se recalcula "desde ahora hacia atras" en cada
+    llamada, no es un contador que se resetea a una hora fija. Por eso el
+    bloqueo se va "desarmando" solo a medida que pasan los minutos.
+
+    Cuenta TODOS los entrantes, incluidos los que despues fueron rechazados
+    por largo (estado="rechazado_largo"): igual representan actividad real
+    de ese numero. NO cuenta los bloqueados por este mismo rate limit, porque
+    esos nunca se guardan como entrante (ver mas abajo).
+
+    Parametros:
+        sesion: sesion SQLAlchemy abierta.
+        usuario_id: ID del usuario a contar.
+        ventana_minutos: si es None, usa config.RATE_LIMIT_VENTANA_MINUTOS.
+
+    Devuelve:
+        int: cantidad de mensajes entrantes en esa ventana.
+    '''
+    if ventana_minutos is None:
+        ventana_minutos = config.RATE_LIMIT_VENTANA_MINUTOS
+
+    desde = datetime.utcnow() - timedelta(minutes=ventana_minutos)
+
+    return (
+        sesion.query(Mensaje)
+        .filter(Mensaje.usuario_id == usuario_id)
+        .filter(Mensaje.direccion == "entrante")
+        .filter(Mensaje.creado_en >= desde)
+        .count()
+    )
+
+
+def ya_fue_advertido_rate_limit(sesion, usuario_id, ventana_minutos=None):
+    '''
+    Verifica si ya le mandamos el aviso de "estas escribiendo muy rapido"
+    a este usuario DENTRO de la ventana de tiempo actual.
+
+    Evita mandar el mismo cartel repetido muchas veces seguidas si el
+    usuario sigue insistiendo despues de ser bloqueado: avisamos UNA vez
+    por ventana, despues nos quedamos en silencio hasta que la ventana
+    se despeje.
+
+    Usa la MISMA ventana deslizante que contar_mensajes_recientes(): si la
+    ultima advertencia que mandamos ya quedo afuera de los ultimos X minutos,
+    se considera que no avisamos "en esta ventana" y se vuelve a avisar.
+
+    Parametros:
+        sesion: sesion SQLAlchemy abierta.
+        usuario_id: ID del usuario a chequear.
+        ventana_minutos: si es None, usa config.RATE_LIMIT_VENTANA_MINUTOS.
+
+    Devuelve:
+        True si ya le avisamos en esta ventana, False si es la primera vez.
+    '''
+    if ventana_minutos is None:
+        ventana_minutos = config.RATE_LIMIT_VENTANA_MINUTOS
+
+    desde = datetime.utcnow() - timedelta(minutes=ventana_minutos)
+
+    existe = (
+        sesion.query(Mensaje)
+        .filter(Mensaje.usuario_id == usuario_id)
+        .filter(Mensaje.estado == "rechazado_rate_limit")
+        .filter(Mensaje.creado_en >= desde)
+        .first()
+    )
+    return existe is not None
