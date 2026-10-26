@@ -29,12 +29,14 @@ texto, message_id), que son simples strings.
 '''
 threading: libreria estandar para correr codigo en un hilo separado (background).
 flask.request: el HTTP entrante (solo accesible en el hilo principal del request).
+config: variables de configuracion (ej: MAX_LARGO_MENSAJE, Etapa 4).
 .providers: factory obtener_provider().
 database.connection / repositorio: persistencia.
 chatbot.rag: el orquestador de la IA (la novedad de etapa 3).
 '''
 import threading
 from flask import request
+import config
 from .providers import obtener_provider
 from database.connection import obtener_sesion
 from database import repositorio
