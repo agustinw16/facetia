@@ -186,23 +186,30 @@ def _procesar_en_background(numero, texto, message_id):
                 # Va ANTES del chequeo de largo: asi una rafaga de mensajes
                 # larguisimos tambien queda atrapada por el limite de cantidad,
                 # no solo una rafaga de mensajes cortos.
+                #
+                # Primero chequeamos si TODAVIA estamos en cooldown (silencio)
+                # por haber disparado el limite hace poco. Es el chequeo mas
+                # barato (no hace falta contar nada), y si da True, cortamos
+                # aca sin importar cuantos mensajes mando mientras tanto.
+                if repositorio.ya_fue_advertido_rate_limit(sesion, usuario.id):
+                    print(f"[WEBHOOK-BG] {numero} sigue en cooldown de rate limit "
+                          f"({config.RATE_LIMIT_COOLDOWN_MINUTOS} min). Silencio.")
+                    return
+
+                # No esta en cooldown: contamos cuantos mensajes mando en la
+                # ventana CORTA (RATE_LIMIT_VENTANA_MINUTOS) para decidir si
+                # esta rafaga alcanza para disparar el limite recien ahora.
                 cantidad_reciente = repositorio.contar_mensajes_recientes(sesion, usuario.id)
                 if cantidad_reciente >= config.RATE_LIMIT_MAX_MENSAJES:
-
-                    if repositorio.ya_fue_advertido_rate_limit(sesion, usuario.id):
-                        # Ya le avisamos antes en esta ventana. Nos quedamos
-                        # callados: no gastamos en mandarle el cartel de nuevo.
-                        print(f"[WEBHOOK-BG] {numero} sigue superando el rate limit "
-                              f"({cantidad_reciente} msj en {config.RATE_LIMIT_VENTANA_MINUTOS} min). Silencio.")
-                        return
-
-                    # Primera vez que supera el limite en esta ventana: avisamos UNA vez.
+                    # Se dispara el limite: avisamos UNA vez y activamos el
+                    # cooldown (el aviso guardado en la BD es lo que hace que
+                    # ya_fue_advertido_rate_limit() devuelva True despues).
                     print(f"[WEBHOOK-BG] Rate limit alcanzado para {numero} "
                           f"({cantidad_reciente} msj en {config.RATE_LIMIT_VENTANA_MINUTOS} min). "
-                          f"Avisando por primera vez.")
-                    unidad = "minuto" if config.RATE_LIMIT_VENTANA_MINUTOS == 1 else "minutos"
+                          f"Activando cooldown de {config.RATE_LIMIT_COOLDOWN_MINUTOS} min.")
+                    unidad = "minuto" if config.RATE_LIMIT_COOLDOWN_MINUTOS == 1 else "minutos"
                     respuesta_limite = (
-                        f"Estas escribiendo muy rapido. Esperá {config.RATE_LIMIT_VENTANA_MINUTOS} "
+                        f"Estas escribiendo muy rapido. Esperá {config.RATE_LIMIT_COOLDOWN_MINUTOS} "
                         f"{unidad} y volvé a intentar."
                     )
                     envio_ok = provider.enviar_mensaje(numero, respuesta_limite)

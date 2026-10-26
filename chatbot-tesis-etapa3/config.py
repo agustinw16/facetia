@@ -244,8 +244,27 @@ rapida, pero frena un spam evidente.
 '''
 RATE_LIMIT_MAX_MENSAJES = int(os.getenv("RATE_LIMIT_MAX_MENSAJES", 10))
 
-# Ventana de tiempo (en minutos) para contar los mensajes del limite anterior.
+# Ventana de tiempo (en minutos) para CONTAR los mensajes y decidir si se
+# dispara el limite. Ojo: esto es DISTINTO al tiempo de espera (ver mas abajo).
+'''
+Si esta ventana fuera larga (ej: 5 minutos), habria que mandar 10 mensajes
+EN 5 MINUTOS para disparar el limite -> mucho mas dificil de alcanzar en una
+conversacion normal con varias preguntas. 1 minuto detecta rafagas rapidas
+sin castigar una charla normal, aunque sea con varias preguntas seguidas.
+'''
 RATE_LIMIT_VENTANA_MINUTOS = int(os.getenv("RATE_LIMIT_VENTANA_MINUTOS", 1))
+
+# Cuantos minutos dura el "silencio" una vez que se activo el limite.
+'''
+Es DISTINTO de RATE_LIMIT_VENTANA_MINUTOS: esa ventana decide CUANDO se
+dispara el limite (contando mensajes recientes); este valor decide CUANTO
+TIEMPO se queda en silencio el bot despues de avisarle al usuario.
+
+Con esto en 5, alguien que supere el limite recibe UNA advertencia que le
+dice "esperá 5 minutos", y durante esos 5 minutos el bot no le contesta nada
+mas, sin importar cuantos mensajes mande mientras tanto.
+'''
+RATE_LIMIT_COOLDOWN_MINUTOS = int(os.getenv("RATE_LIMIT_COOLDOWN_MINUTOS", 5))
 
 
 # === SERVIDOR ===

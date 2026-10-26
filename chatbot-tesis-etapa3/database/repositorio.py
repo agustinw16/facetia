@@ -248,28 +248,31 @@ def contar_mensajes_recientes(sesion, usuario_id, ventana_minutos=None):
 
 def ya_fue_advertido_rate_limit(sesion, usuario_id, ventana_minutos=None):
     '''
-    Verifica si ya le mandamos el aviso de "estas escribiendo muy rapido"
-    a este usuario DENTRO de la ventana de tiempo actual.
+    Verifica si el usuario esta DENTRO del periodo de "cooldown" (silencio)
+    por haber superado el rate limit hace poco.
 
-    Evita mandar el mismo cartel repetido muchas veces seguidas si el
-    usuario sigue insistiendo despues de ser bloqueado: avisamos UNA vez
-    por ventana, despues nos quedamos en silencio hasta que la ventana
-    se despeje.
+    Evita mandar el cartel de advertencia repetido muchas veces seguidas:
+    avisamos UNA vez cuando se activa el limite, y despues nos quedamos en
+    silencio durante todo el cooldown, sin importar cuantos mensajes mande
+    el usuario mientras tanto.
 
-    Usa la MISMA ventana deslizante que contar_mensajes_recientes(): si la
-    ultima advertencia que mandamos ya quedo afuera de los ultimos X minutos,
-    se considera que no avisamos "en esta ventana" y se vuelve a avisar.
+    OJO: la ventana que usa esta funcion es config.RATE_LIMIT_COOLDOWN_MINUTOS,
+    NO config.RATE_LIMIT_VENTANA_MINUTOS. Son conceptos distintos:
+    - RATE_LIMIT_VENTANA_MINUTOS: cuanto mirar hacia atras para CONTAR
+      mensajes y decidir si se dispara el limite (lo usa contar_mensajes_recientes).
+    - RATE_LIMIT_COOLDOWN_MINUTOS: cuanto dura el silencio UNA VEZ disparado
+      el limite (lo usa esta funcion).
 
     Parametros:
         sesion: sesion SQLAlchemy abierta.
         usuario_id: ID del usuario a chequear.
-        ventana_minutos: si es None, usa config.RATE_LIMIT_VENTANA_MINUTOS.
+        ventana_minutos: si es None, usa config.RATE_LIMIT_COOLDOWN_MINUTOS.
 
     Devuelve:
-        True si ya le avisamos en esta ventana, False si es la primera vez.
+        True si todavia esta en cooldown, False si ya se puede volver a avisar.
     '''
     if ventana_minutos is None:
-        ventana_minutos = config.RATE_LIMIT_VENTANA_MINUTOS
+        ventana_minutos = config.RATE_LIMIT_COOLDOWN_MINUTOS
 
     desde = datetime.utcnow() - timedelta(minutes=ventana_minutos)
 
