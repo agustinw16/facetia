@@ -127,7 +127,38 @@ def _procesar_en_background(numero, texto, message_id):
 
             # c) Usuario + mensaje entrante.
             usuario = repositorio.obtener_o_crear_usuario(sesion, numero)
+            
+            # === NUEVO (Etapa 4): limite de largo del mensaje ===
+            # Si el mensaje es demasiado largo, lo registramos igual (para
+            # tener el historial completo) pero NO lo mandamos al RAG: le
+            # respondemos un mensaje fijo, barato, y cortamos aca.
+            if len(texto) > config.MAX_LARGO_MENSAJE:
+                print(f"[WEBHOOK-BG] Mensaje muy largo ({len(texto)} caracteres, "
+                      f"limite {config.MAX_LARGO_MENSAJE}). Rechazado sin pasar por el RAG.")
 
+                repositorio.guardar_mensaje_entrante(
+                    sesion=sesion,
+                    usuario_id=usuario.id,
+                    message_id_meta=message_id,
+                    texto=texto,
+                )
+
+                respuesta_corta = (
+                    f"Tu mensaje es muy largo. Por favor, intenta resumirlo "
+                    f"en menos de {config.MAX_LARGO_MENSAJE} caracteres."
+                )
+                envio_ok = provider.enviar_mensaje(numero, respuesta_corta)
+                estado = "enviado" if envio_ok else "fallido"
+                repositorio.guardar_mensaje_saliente(
+                    sesion=sesion,
+                    usuario_id=usuario.id,
+                    texto=respuesta_corta,
+                    estado=estado,
+                )
+
+                sesion.commit()
+                return
+            
             # === NUEVO: traer el historial ANTES de guardar el mensaje actual ===
             # El orden importa: si lo trajeramos despues de guardar, el mensaje
             # que acaba de llegar aparecería DOS veces (una en el historial y

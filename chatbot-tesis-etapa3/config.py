@@ -216,6 +216,18 @@ Con 60 minutos solo se recuerda lo hablado en la ultima hora.
 '''
 MEMORIA_VENTANA_MINUTOS = int(os.getenv("MEMORIA_VENTANA_MINUTOS", 60))
 
+# === LIMITES DE SEGURIDAD / ANTI-ABUSO (NUEVO EN ETAPA 4) ===
+
+# Cuantos caracteres como maximo aceptamos en un mensaje entrante.
+'''
+Un mensaje muy largo cuesta mas embeberlo y ocupa mas lugar en el contexto
+que le mandamos al LLM. Es tambien una forma simple de abuso: pegar un
+bloque de texto enorme repetidamente para generar gasto.
+
+'''
+MAX_LARGO_MENSAJE = int(os.getenv("MAX_LARGO_MENSAJE", 500))
+
+
 # === SERVIDOR ===
 
 # Puerto donde escucha Flask
