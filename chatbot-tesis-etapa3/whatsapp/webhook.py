@@ -100,12 +100,49 @@ def procesar_mensaje_entrante():
     # === 5) Respuesta inmediata al proveedor (no espera al RAG) ===
     return "EVENT_RECEIVED"
 
+# === NUEVO (Etapa 4): lock por usuario para procesar sus mensajes en orden ===
+'''
+Si un mismo usuario manda varios mensajes muy seguidos, cada uno dispara su
+propio thread en paralelo. Sin ningun control, esos threads se pisan entre
+si: el thread 2 puede arrancar a leer el historial ANTES de que el thread 1
+termine de generar y guardar su respuesta (el RAG tarda varios segundos), asi
+que el thread 2 no la ve todavia. Resultado: el bot se presenta de nuevo,
+repite informacion, o pierde el hilo de la conversacion.
+
+La solucion es un "lock" (candado) por numero de telefono: antes de procesar
+un mensaje, el thread tiene que "tomar" el candado de ESE numero. Si otro
+thread del MISMO numero ya lo tiene, el nuevo thread espera a que termine.
+Mensajes de NUMEROS DISTINTOS no se bloquean entre si: siguen procesandose
+en paralelo sin ningun problema, solo se ordena la conversacion de cada
+persona consigo misma.
+'''
+_locks_por_usuario = {}
+_lock_meta = threading.Lock()  # protege la CREACION de locks nuevos
+
+
+def _obtener_lock(numero):
+    '''
+    Devuelve el Lock asociado a un numero de telefono, creandolo si no existe.
+
+    Usamos un "lock meta" para proteger la creacion del lock en si: si dos
+    threads llegan AL MISMO TIEMPO con el mismo numero por primera vez, sin
+    este lock meta podrian crear dos Locks distintos para el mismo numero
+    (y entonces el candado no serviria de nada, porque cada thread tomaria
+    un candado diferente).
+    '''
+    with _lock_meta:
+        if numero not in _locks_por_usuario:
+            _locks_por_usuario[numero] = threading.Lock()
+        return _locks_por_usuario[numero]
+
 
 def _procesar_en_background(numero, texto, message_id):
     '''
     Hace el trabajo pesado, FUERA del request HTTP. Aca SI podemos tardar varios segundos.
 
     Flujo:
+    0) Tomar el lock de este numero (esperar si otro mensaje del MISMO
+       numero se esta procesando todavia).
     a) Abrir sesion de BD.
     b) DEDUPLICACION: si el message_id ya esta, no hacemos nada.
     c) Persistir usuario + mensaje entrante.
@@ -116,109 +153,118 @@ def _procesar_en_background(numero, texto, message_id):
 
     El "_" inicial del nombre indica que es una funcion interna (no se usa desde afuera).
     '''
-    # Obtenemos el provider (esta cacheado, es seguro usarlo desde el thread).
-    provider = obtener_provider()
 
-    try:
-        with obtener_sesion() as sesion:
+    # === NUEVO: esperar a que ningun OTRO mensaje del MISMO numero se este
+    # procesando. Si este es el unico mensaje de este usuario en este momento,
+    # entramos de inmediato. Si hay otro en curso, esperamos aca hasta que
+    # termine (incluida su respuesta), asi el historial que leamos despues
+    # ya lo incluye.
+    lock_usuario = _obtener_lock(numero)
 
-            # b) Deduplicacion: si ya procesamos este mensaje, cortamos.
-            if repositorio.ya_fue_procesado(sesion, message_id):
-                print(f"[WEBHOOK-BG] Mensaje duplicado ignorado: {message_id}")
-                return
+    with lock_usuario:
+        # Obtenemos el provider (esta cacheado, es seguro usarlo desde el thread).
+        provider = obtener_provider()
 
-            # c) Usuario + mensaje entrante.
-            usuario = repositorio.obtener_o_crear_usuario(sesion, numero)
+        try:
+            with obtener_sesion() as sesion:
+
+                # b) Deduplicacion: si ya procesamos este mensaje, cortamos.
+                if repositorio.ya_fue_procesado(sesion, message_id):
+                    print(f"[WEBHOOK-BG] Mensaje duplicado ignorado: {message_id}")
+                    return
+
+                # c) Usuario + mensaje entrante.
+                usuario = repositorio.obtener_o_crear_usuario(sesion, numero)
             
-            # === NUEVO (Etapa 4): limite de largo del mensaje ===
-            # Si el mensaje es demasiado largo, lo registramos igual (para
-            # tener el historial completo) pero NO lo mandamos al RAG: le
-            # respondemos un mensaje fijo, barato, y cortamos aca.
-            if len(texto) > config.MAX_LARGO_MENSAJE:
-                print(f"[WEBHOOK-BG] Mensaje muy largo ({len(texto)} caracteres, "
-                      f"limite {config.MAX_LARGO_MENSAJE}). Rechazado sin pasar por el RAG.")
+                # === NUEVO (Etapa 4): limite de largo del mensaje ===
+                # Si el mensaje es demasiado largo, lo registramos igual (para
+                # tener el historial completo) pero NO lo mandamos al RAG: le
+                # respondemos un mensaje fijo, barato, y cortamos aca.
+                if len(texto) > config.MAX_LARGO_MENSAJE:
+                    print(f"[WEBHOOK-BG] Mensaje muy largo ({len(texto)} caracteres, "
+                          f"limite {config.MAX_LARGO_MENSAJE}). Rechazado sin pasar por el RAG.")
+
+                    repositorio.guardar_mensaje_entrante(
+                        sesion=sesion,
+                        usuario_id=usuario.id,
+                        message_id_meta=message_id,
+                        texto=texto,
+                        estado="rechazado_largo",
+                    )
+
+                    respuesta_corta = (
+                        f"Tu mensaje es muy largo. Por favor, intenta resumirlo "
+                        f"en menos de {config.MAX_LARGO_MENSAJE} caracteres."
+                    )
+                    # NOTA: siempre usamos "rechazado_largo" aca (no "enviado"/"fallido"),
+                    # para que obtener_historial() tambien excluya este cartel. Si no,
+                    # el LLM veria una respuesta del bot "de la nada" sin la pregunta
+                    # que la origino (esa ya quedo excluida), lo cual lo confunde igual.
+                    envio_ok = provider.enviar_mensaje(numero, respuesta_corta)
+                    repositorio.guardar_mensaje_saliente(
+                        sesion=sesion,
+                        usuario_id=usuario.id,
+                        texto=respuesta_corta,
+                        estado="rechazado_largo",
+                    )
+
+                    sesion.commit()
+                    return
+            
+                # === NUEVO: traer el historial ANTES de guardar el mensaje actual ===
+                # El orden importa: si lo trajeramos despues de guardar, el mensaje
+                # que acaba de llegar aparecería DOS veces (una en el historial y
+                # otra como pregunta actual).
+                historial = repositorio.obtener_historial(sesion, usuario.id)
+                print(f"[WEBHOOK-BG] Historial: {len(historial)} mensajes previos.")
 
                 repositorio.guardar_mensaje_entrante(
                     sesion=sesion,
                     usuario_id=usuario.id,
                     message_id_meta=message_id,
                     texto=texto,
-                    estado="rechazado_largo",
                 )
 
-                respuesta_corta = (
-                    f"Tu mensaje es muy largo. Por favor, intenta resumirlo "
-                    f"en menos de {config.MAX_LARGO_MENSAJE} caracteres."
-                )
-                # NOTA: siempre usamos "rechazado_largo" aca (no "enviado"/"fallido"),
-                # para que obtener_historial() tambien excluya este cartel. Si no,
-                # el LLM veria una respuesta del bot "de la nada" sin la pregunta
-                # que la origino (esa ya quedo excluida), lo cual lo confunde igual.
-                envio_ok = provider.enviar_mensaje(numero, respuesta_corta)
+                 # NUEVO: confirmamos el mensaje entrante YA, antes de llamar al LLM.
+                # Asi, si llegan otros mensajes del mismo usuario mientras este
+                # todavia esta "pensando" (el RAG tarda varios segundos), SI pueden
+                # verlo en su historial. Sin este commit temprano, cada thread
+                # trabaja con una foto vieja de la base de datos hasta que termina.
+                sesion.commit()
+
+                # d) === LA NOVEDAD DE ETAPA 3: generar respuesta con RAG ===
+                # Antes era: respuesta = f"Esta es la respuesta a la pregunta: {texto}"
+                # Ahora el bot responde con informacion real de los documentos.
+                try:
+                    respuesta = rag.responder(texto, historial=historial)
+                except Exception as e:
+                    # Si el RAG falla (OpenAI caido, sin saldo, etc), no dejamos al usuario
+                    # en silencio: le mandamos un mensaje generico y lo logueamos.
+                    print(f"[WEBHOOK-BG] Error en RAG: {e}")
+                    respuesta = ("Estoy teniendo problemas para responder en este momento. "
+                                 "Por favor, intenta de nuevo en unos minutos.")
+
+                # e) Enviar la respuesta.
+                envio_ok = provider.enviar_mensaje(numero, respuesta)
+
+                # f) Persistir el mensaje saliente con su estado.
+                estado = "enviado" if envio_ok else "fallido"
                 repositorio.guardar_mensaje_saliente(
                     sesion=sesion,
                     usuario_id=usuario.id,
-                    texto=respuesta_corta,
-                    estado="rechazado_largo",
+                    texto=respuesta,
+                    estado=estado,
                 )
 
+                # g) Confirmar toda la transaccion.
                 sesion.commit()
-                return
-            
-            # === NUEVO: traer el historial ANTES de guardar el mensaje actual ===
-            # El orden importa: si lo trajeramos despues de guardar, el mensaje
-            # que acaba de llegar aparecería DOS veces (una en el historial y
-            # otra como pregunta actual).
-            historial = repositorio.obtener_historial(sesion, usuario.id)
-            print(f"[WEBHOOK-BG] Historial: {len(historial)} mensajes previos.")
 
-            repositorio.guardar_mensaje_entrante(
-                sesion=sesion,
-                usuario_id=usuario.id,
-                message_id_meta=message_id,
-                texto=texto,
-            )
+                if envio_ok:
+                    print("[WEBHOOK-BG] Respuesta enviada correctamente.")
+                else:
+                    print("[WEBHOOK-BG] Fallo el envio de la respuesta.")
 
-             # NUEVO: confirmamos el mensaje entrante YA, antes de llamar al LLM.
-            # Asi, si llegan otros mensajes del mismo usuario mientras este
-            # todavia esta "pensando" (el RAG tarda varios segundos), SI pueden
-            # verlo en su historial. Sin este commit temprano, cada thread
-            # trabaja con una foto vieja de la base de datos hasta que termina.
-            sesion.commit()
-
-            # d) === LA NOVEDAD DE ETAPA 3: generar respuesta con RAG ===
-            # Antes era: respuesta = f"Esta es la respuesta a la pregunta: {texto}"
-            # Ahora el bot responde con informacion real de los documentos.
-            try:
-                respuesta = rag.responder(texto, historial=historial)
-            except Exception as e:
-                # Si el RAG falla (OpenAI caido, sin saldo, etc), no dejamos al usuario
-                # en silencio: le mandamos un mensaje generico y lo logueamos.
-                print(f"[WEBHOOK-BG] Error en RAG: {e}")
-                respuesta = ("Estoy teniendo problemas para responder en este momento. "
-                             "Por favor, intenta de nuevo en unos minutos.")
-
-            # e) Enviar la respuesta.
-            envio_ok = provider.enviar_mensaje(numero, respuesta)
-
-            # f) Persistir el mensaje saliente con su estado.
-            estado = "enviado" if envio_ok else "fallido"
-            repositorio.guardar_mensaje_saliente(
-                sesion=sesion,
-                usuario_id=usuario.id,
-                texto=respuesta,
-                estado=estado,
-            )
-
-            # g) Confirmar toda la transaccion.
-            sesion.commit()
-
-            if envio_ok:
-                print("[WEBHOOK-BG] Respuesta enviada correctamente.")
-            else:
-                print("[WEBHOOK-BG] Fallo el envio de la respuesta.")
-
-    except Exception as e:
-        # Cualquier error inesperado en el background lo logueamos.
-        # Como ya respondimos 200, no hay nada que devolverle al proveedor.
-        print(f"[WEBHOOK-BG] Excepcion inesperada: {e}")
+        except Exception as e:
+            # Cualquier error inesperado en el background lo logueamos.
+            # Como ya respondimos 200, no hay nada que devolverle al proveedor.
+            print(f"[WEBHOOK-BG] Excepcion inesperada: {e}")
