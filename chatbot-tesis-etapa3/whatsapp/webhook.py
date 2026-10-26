@@ -143,19 +143,23 @@ def _procesar_en_background(numero, texto, message_id):
                     usuario_id=usuario.id,
                     message_id_meta=message_id,
                     texto=texto,
+                    estado="rechazado_largo",
                 )
 
                 respuesta_corta = (
                     f"Tu mensaje es muy largo. Por favor, intenta resumirlo "
                     f"en menos de {config.MAX_LARGO_MENSAJE} caracteres."
                 )
+                # NOTA: siempre usamos "rechazado_largo" aca (no "enviado"/"fallido"),
+                # para que obtener_historial() tambien excluya este cartel. Si no,
+                # el LLM veria una respuesta del bot "de la nada" sin la pregunta
+                # que la origino (esa ya quedo excluida), lo cual lo confunde igual.
                 envio_ok = provider.enviar_mensaje(numero, respuesta_corta)
-                estado = "enviado" if envio_ok else "fallido"
                 repositorio.guardar_mensaje_saliente(
                     sesion=sesion,
                     usuario_id=usuario.id,
                     texto=respuesta_corta,
-                    estado=estado,
+                    estado="rechazado_largo",
                 )
 
                 sesion.commit()
@@ -174,6 +178,13 @@ def _procesar_en_background(numero, texto, message_id):
                 message_id_meta=message_id,
                 texto=texto,
             )
+
+             # NUEVO: confirmamos el mensaje entrante YA, antes de llamar al LLM.
+            # Asi, si llegan otros mensajes del mismo usuario mientras este
+            # todavia esta "pensando" (el RAG tarda varios segundos), SI pueden
+            # verlo en su historial. Sin este commit temprano, cada thread
+            # trabaja con una foto vieja de la base de datos hasta que termina.
+            sesion.commit()
 
             # d) === LA NOVEDAD DE ETAPA 3: generar respuesta con RAG ===
             # Antes era: respuesta = f"Esta es la respuesta a la pregunta: {texto}"

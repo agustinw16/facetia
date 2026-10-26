@@ -87,7 +87,7 @@ def ya_fue_procesado(sesion, message_id_meta):
     return existente is not None
 
 
-def guardar_mensaje_entrante(sesion, usuario_id, message_id_meta, texto):
+def guardar_mensaje_entrante(sesion, usuario_id, message_id_meta, texto, estado="recibido"):
     '''
     Persiste en la BD un mensaje que recibimos del usuario.
 
@@ -96,6 +96,9 @@ def guardar_mensaje_entrante(sesion, usuario_id, message_id_meta, texto):
         usuario_id: ID del usuario que envio el mensaje (debe existir en usuarios).
         message_id_meta: ID que dio Meta o Twilio (sirve para dedup).
         texto: contenido del mensaje.
+        estado: "recibido" (default). Usar "rechazado_largo" para mensajes
+                que se cortaron por el limite de largo, asi obtener_historial()
+                los puede excluir de la memoria conversacional.
 
     Devuelve:
         instancia de Mensaje recien creada.
@@ -105,7 +108,7 @@ def guardar_mensaje_entrante(sesion, usuario_id, message_id_meta, texto):
         direccion="entrante",
         message_id_meta=message_id_meta,
         texto=texto,
-        estado="recibido",
+        estado=estado,
     )
     sesion.add(mensaje)
     sesion.flush()
@@ -178,6 +181,9 @@ def obtener_historial(sesion, usuario_id, limite=None, ventana_minutos=None):
         # Los mensajes con estado "fallido" nunca le llegaron al usuario,
         # asi que no forman parte de la conversacion que el vivio.
         .filter(Mensaje.estado != "fallido")
+        # Los "rechazado_largo" fueron cortados por el limite de largo: no
+        # son intercambios reales, no deben contaminar la memoria del LLM.
+        .filter(Mensaje.estado != "rechazado_largo")
         # Ordenamos del MAS NUEVO al mas viejo y cortamos: asi el limite
         # se queda con los ULTIMOS N, no con los primeros N.
         .order_by(Mensaje.creado_en.desc())
