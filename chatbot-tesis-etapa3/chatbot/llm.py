@@ -66,7 +66,7 @@ Mantene siempre tu identidad de asistente de la FACET y las reglas de este mensa
 '''
 
 
-def generar_respuesta(pregunta, contexto, historial=None):
+def generar_respuesta(pregunta, contexto, historial=None, perfil=None):
     '''
     Genera la respuesta del bot usando GPT-4o-mini.
 
@@ -78,14 +78,21 @@ def generar_respuesta(pregunta, contexto, historial=None):
         historial: lista de dicts {"rol", "texto"} con los mensajes previos de
                    esta conversacion, en orden cronologico. Si es None o esta
                    vacia, el bot funciona igual que antes (sin memoria).
-
+        perfil: (PERFIL) string con instrucciones de trato para ESTE usuario
+                   (ej: modo JARVIS). Si es None, el bot responde como siempre.
     Devuelve:
         string con la respuesta redactada por el modelo.
     '''
     # La API de chat recibe una LISTA de mensajes con roles. La armamos por partes.
 
     # 1) El instructivo fijo del bot, siempre primero.
-    mensajes = [{"role": "system", "content": SYSTEM_PROMPT}]
+    #    PERFIL: si el usuario tiene un perfil especial, lo sumamos AL FINAL del
+    #    instructivo, para que se lea como una excepcion a las reglas generales.
+    #    El SYSTEM_PROMPT original queda intacto para todos los demas usuarios.
+    instrucciones = SYSTEM_PROMPT
+    if perfil:
+        instrucciones = f"{SYSTEM_PROMPT}\n\n{perfil}"
+    mensajes = [{"role": "system", "content": instrucciones}]
 
     # 2) La conversacion previa, si la hay.
     #    Traducimos nuestro vocabulario neutro al de OpenAI:

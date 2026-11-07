@@ -39,6 +39,7 @@ config: variables de configuracion (ej: MAX_LARGO_MENSAJE, Etapa 4).
 .providers: factory obtener_provider().
 database.connection / repositorio: persistencia.
 chatbot.rag: el orquestador de la IA (la novedad de etapa 3).
+chatbot.perfiles: decide como tratar a cada usuario (ej: modo JARVIS).
 '''
 import threading
 from flask import request
@@ -47,6 +48,7 @@ from .providers import obtener_provider
 from database.connection import obtener_sesion
 from database import repositorio
 from chatbot import rag
+from chatbot import perfiles
 
 
 def verificar_webhook():
@@ -278,11 +280,19 @@ def _procesar_en_background(numero, texto, message_id):
                 # trabaja con una foto vieja de la base de datos hasta que termina.
                 sesion.commit()
 
+                # === PERFIL: ¿quien es este usuario? ===
+                # perfiles decide si este numero recibe un trato especial (modo JARVIS).
+                # Para un usuario comun devuelve None y todo sigue igual que antes.
+                perfil = perfiles.obtener_perfil(usuario)
+                if perfil:
+                    print("[WEBHOOK-BG] Usuario con perfil especial (modo JARVIS).")
+
+
                 # d) === LA NOVEDAD DE ETAPA 3: generar respuesta con RAG ===
                 # Antes era: respuesta = f"Esta es la respuesta a la pregunta: {texto}"
                 # Ahora el bot responde con informacion real de los documentos.
                 try:
-                    respuesta = rag.responder(texto, historial=historial)
+                    respuesta = rag.responder(texto, historial=historial, perfil=perfil)
                 except Exception as e:
                     # Si el RAG falla (OpenAI caido, sin saldo, etc), no dejamos al usuario
                     # en silencio: le mandamos un mensaje generico y lo logueamos.

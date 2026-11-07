@@ -64,7 +64,7 @@ def _armar_contexto(chunks):
     return "\n\n".join(partes)
 
 
-def responder(pregunta, historial=None):
+def responder(pregunta, historial=None,perfil=None):
     '''
     Funcion principal del RAG. Recibe la pregunta del usuario y devuelve la respuesta.
 
@@ -74,7 +74,8 @@ def responder(pregunta, historial=None):
         pregunta: el texto que escribio el usuario.
         historial: lista de dicts {"rol", "texto"} con los mensajes previos.
                    Opcional: si no se pasa, el bot responde sin memoria.
-
+        perfil: (PERFIL) instrucciones de trato para este usuario, o None.
+                El RAG no lo usa: solo se lo pasa al LLM.
     Devuelve:
         string con la respuesta lista para enviar por WhatsApp.
     '''
@@ -97,7 +98,7 @@ def responder(pregunta, historial=None):
     # Si el contexto esta vacio (no se cargaron documentos o ninguno era relevante),
     # el system prompt hace que el modelo responda "no tengo esa informacion".
     # le pasamos tambien el historial de la conversacion.
-    respuesta = llm.generar_respuesta(pregunta, contexto, historial)
+    respuesta = llm.generar_respuesta(pregunta, contexto, historial, perfil)
     print(f"[RAG] Respuesta generada ({len(respuesta)} caracteres).")
 
     return respuesta

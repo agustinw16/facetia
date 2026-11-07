@@ -266,6 +266,20 @@ mas, sin importar cuantos mensajes mande mientras tanto.
 '''
 RATE_LIMIT_COOLDOWN_MINUTOS = int(os.getenv("RATE_LIMIT_COOLDOWN_MINUTOS", 5))
 
+# === PERFILES / MODO JARVIS (PERFIL) ===
+
+# Numero de telefono del DUEÑO del bot (el que recibe el trato estilo JARVIS).
+'''
+Va en el .env y en las variables de Render, NUNCA escrito en el codigo:
+es un dato personal y el repo podria ser publico.
+
+FORMATO: igual que como llega de Meta/Twilio y como se guarda en la tabla usuarios:
+codigo de pais + 9 + caracteristica + numero, sin "+" ni espacios. Ej: 5493815887766.
+(Ojo: CON el 9. formatear_numero() solo se aplica al ENVIAR, no al recibir.)
+
+Si se deja vacio, el modo JARVIS queda desactivado.
+'''
+NUMERO_DUENO = os.getenv("NUMERO_DUENO", "").strip()
 
 # === SERVIDOR ===
 
