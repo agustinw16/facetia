@@ -111,7 +111,13 @@ def responder(pregunta, historial=None,perfil=None):
 
     # === [3c] FERIADOS: traer los feriados nacionales proximos ===
     # Mismo motivo que los avisos: valen para todos, por eso los busca el RAG.
-    texto_feriados = feriados.feriados_proximos_texto()
+    # estado_hoy_manana_texto() va SIEMPRE primero: es el dato mas pedido
+    # ("hoy"/"mañana" hay clases?) y lo calculamos en Python para que el LLM no
+    # tenga que deducirlo el (ver el docstring de esa funcion en feriados.py).
+    texto_feriados = feriados.estado_hoy_manana_texto()
+    texto_proximos = feriados.feriados_proximos_texto()
+    if texto_proximos:
+        texto_feriados = f"{texto_feriados}\n\n{texto_proximos}"
 
     respuesta = llm.generar_respuesta(
         pregunta, contexto, historial, perfil, avisos=texto_avisos, feriados=texto_feriados

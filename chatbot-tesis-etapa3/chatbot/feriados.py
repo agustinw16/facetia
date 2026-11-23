@@ -130,3 +130,47 @@ def feriados_proximos_texto():
 
     lineas = [f"- {f['fecha']:%d/%m/%Y}: {f['motivo']}" for f in proximos]
     return "FERIADOS NACIONALES PROXIMOS (Argentina):\n" + "\n".join(lineas)
+
+
+def estado_hoy_manana_texto():
+    '''
+    Calcula en Python (no se lo dejamos "adivinar" al LLM) si HOY y MAÑANA son
+    dia habil, fin de semana o feriado nacional segun el calendario.
+
+    POR QUE ESTO Y NO DEJAR QUE EL LLM LO DEDUZCA:
+    Se detecto en pruebas que, frente a una pregunta corta tipo "mañana?" justo
+    despues de un "hoy no hay clases" reciente, el LLM tiende a "arrastrar" la
+    respuesta anterior en vez de recalcular el dia de la semana y cruzarlo con
+    la lista de feriados - llegando a inventar que un feriado de un solo dia
+    se extiende al siguiente. Calculando esto en Python se elimina esa fuente
+    de error: el LLM solo repite un hecho ya resuelto, no hace la cuenta el mismo.
+
+    NO contempla avisos locales (paros, cierres puntuales de la facultad): esos
+    son texto libre cargado a mano, no hay forma de saber en codigo si
+    implican que no hay clases. Siguen yendo aparte, en avisos.py, y tienen
+    prioridad sobre esto si se contradicen.
+
+    Devuelve:
+        texto con el estado de HOY y MAÑANA. A diferencia de las otras
+        funciones de este modulo, nunca devuelve None: siempre hay un HOY y un
+        MAÑANA, haya o no feriados cargados.
+    '''
+    hoy = fecha.ahora_argentina().date()
+    manana = hoy + timedelta(days=1)
+    fechas_feriados = {f["fecha"] for f in _obtener_feriados()}
+
+    def describir(dia):
+        if dia in fechas_feriados:
+            return "feriado nacional, sin clases"
+        if dia.weekday() >= 5:
+            return "fin de semana, sin clases"
+        return "dia habil, sin feriados nacionales registrados"
+
+    return (
+        "ESTADO DE HOY Y MAÑANA (ya calculado con el calendario oficial: NO lo "
+        "vuelvas a deducir vos ni asumas que se extiende a otros dias. Si un "
+        "AVISO VIGENTE de la facultad dice lo contrario para alguno de estos "
+        "dos dias, el aviso tiene prioridad):\n"
+        f"- HOY ({hoy:%d/%m/%Y}): {describir(hoy)}.\n"
+        f"- MAÑANA ({manana:%d/%m/%Y}): {describir(manana)}."
+    )
