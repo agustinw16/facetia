@@ -71,7 +71,7 @@ fecha ya paso. La regla de "no tengo esa informacion" NO aplica a este dato.
 '''
 
 
-def generar_respuesta(pregunta, contexto, historial=None, perfil=None):
+def generar_respuesta(pregunta, contexto, historial=None, perfil=None, avisos=None):
     '''
     Genera la respuesta del bot usando GPT-4o-mini.
 
@@ -85,6 +85,8 @@ def generar_respuesta(pregunta, contexto, historial=None, perfil=None):
                    vacia, el bot funciona igual que antes (sin memoria).
         perfil: (PERFIL) string con instrucciones de trato para ESTE usuario
                    (ej: modo JARVIS). Si es None, el bot responde como siempre.
+        avisos: (AVISOS) texto con los avisos vigentes de la facultad, o None. 
+                Van SIEMPRE a la IA (no dependen de la busqueda por vectores).
     Devuelve:
         string con la respuesta redactada por el modelo.
     '''
@@ -101,9 +103,13 @@ def generar_respuesta(pregunta, contexto, historial=None, perfil=None):
         "Usala para interpretar 'hoy', 'mañana', 'esta semana' y para saber si una fecha ya pasó."
     )
 
-    #    PERFIL: si el usuario tiene un perfil especial, lo sumamos AL FINAL del
-    #    instructivo, para que se lea como una excepcion a las reglas generales.
-    #    El SYSTEM_PROMPT original queda intacto para todos los demas usuarios.
+    # AVISOS: si hay avisos vigentes, van siempre (no dependen de la busqueda). 
+    if avisos: 
+        instrucciones += f"\n\n{avisos}" 
+
+    # PERFIL: si el usuario tiene un perfil especial, lo sumamos AL FINAL del
+    # instructivo, para que se lea como una excepcion a las reglas generales.
+    # El SYSTEM_PROMPT original queda intacto para todos los demas usuarios.
     if perfil:
         instrucciones += f"\n\n{perfil}"
 

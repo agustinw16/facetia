@@ -27,12 +27,13 @@ Esta es la "R", la "A" y la "G" de RAG:
 
 # Importacion de modulos
 '''
-Importamos los tres modulos hermanos del paquete chatbot.
+Importamos los modulos hermanos del paquete chatbot (embeddings, vector_db, llm y avisos).
 El "." indica "desde el mismo paquete (chatbot/)".
 '''
 from . import embeddings
 from . import vector_db
 from . import llm
+from . import avisos
 
 
 def _armar_contexto(chunks):
@@ -70,6 +71,8 @@ def responder(pregunta, historial=None,perfil=None):
 
     Es la UNICA funcion que el webhook necesita llamar.
 
+    Tambien suma los avisos vigentes de la facultad (ver avisos.py).
+
     Parametros:
         pregunta: el texto que escribio el usuario.
         historial: lista de dicts {"rol", "texto"} con los mensajes previos.
@@ -98,7 +101,13 @@ def responder(pregunta, historial=None,perfil=None):
     # Si el contexto esta vacio (no se cargaron documentos o ninguno era relevante),
     # el system prompt hace que el modelo responda "no tengo esa informacion".
     # le pasamos tambien el historial de la conversacion.
-    respuesta = llm.generar_respuesta(pregunta, contexto, historial, perfil)
+    # === [3b] AVISOS: traer los avisos vigentes de la planilla ===
+    # Valen para TODOS los usuarios, por eso los busca el RAG y no el webhook.
+    # Ojo con el nombre: "avisos" ya es el modulo importado arriba; si la variable
+    # tambien se llamara "avisos", taparia al modulo. Por eso se llama texto_avisos.
+    texto_avisos = avisos.obtener_avisos_vigentes()
+
+    respuesta = llm.generar_respuesta(pregunta, contexto, historial, perfil, avisos=texto_avisos)
     print(f"[RAG] Respuesta generada ({len(respuesta)} caracteres).")
 
     return respuesta

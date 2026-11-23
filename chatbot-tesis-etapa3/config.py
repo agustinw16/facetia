@@ -281,6 +281,22 @@ Si se deja vacio, el modo JARVIS queda desactivado.
 '''
 NUMERO_DUENO = os.getenv("NUMERO_DUENO", "").strip()
 
+# === AVISOS (planilla de Google) === 
+# Link de la planilla de avisos publicada como CSV.
+''' 
+Se obtiene en Google Sheets: Archivo -> Compartir -> Publicar en la Web -> 
+hoja "Avisos" -> formato CSV. Va en el .env y en las variables de Render. 
+Si se deja vacio, los avisos quedan desactivados. 
+''' 
+AVISOS_CSV_URL = os.getenv("AVISOS_CSV_URL", "").strip() 
+# Cada cuantos minutos se vuelve a descargar la planilla.
+''' 
+No la descargamos en cada mensaje: guardamos una copia en memoria y la renovamos 
+cada X minutos. Mas bajo = los avisos aparecen antes, pero se descarga mas 
+seguido. 
+''' 
+AVISOS_CACHE_MINUTOS = int(os.getenv("AVISOS_CACHE_MINUTOS", 5))
+
 # === SERVIDOR ===
 
 # Puerto donde escucha Flask
