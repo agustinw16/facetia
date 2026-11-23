@@ -27,13 +27,14 @@ Esta es la "R", la "A" y la "G" de RAG:
 
 # Importacion de modulos
 '''
-Importamos los modulos hermanos del paquete chatbot (embeddings, vector_db, llm y avisos).
-El "." indica "desde el mismo paquete (chatbot/)".
+Importamos los modulos hermanos del paquete chatbot (embeddings, vector_db, llm, avisos
+y feriados). El "." indica "desde el mismo paquete (chatbot/)".
 '''
 from . import embeddings
 from . import vector_db
 from . import llm
 from . import avisos
+from . import feriados
 
 
 def _armar_contexto(chunks):
@@ -71,7 +72,8 @@ def responder(pregunta, historial=None,perfil=None):
 
     Es la UNICA funcion que el webhook necesita llamar.
 
-    Tambien suma los avisos vigentes de la facultad (ver avisos.py).
+    Tambien suma los avisos vigentes de la facultad (ver avisos.py) y los feriados
+    nacionales proximos (ver feriados.py).
 
     Parametros:
         pregunta: el texto que escribio el usuario.
@@ -107,7 +109,13 @@ def responder(pregunta, historial=None,perfil=None):
     # tambien se llamara "avisos", taparia al modulo. Por eso se llama texto_avisos.
     texto_avisos = avisos.obtener_avisos_vigentes()
 
-    respuesta = llm.generar_respuesta(pregunta, contexto, historial, perfil, avisos=texto_avisos)
+    # === [3c] FERIADOS: traer los feriados nacionales proximos ===
+    # Mismo motivo que los avisos: valen para todos, por eso los busca el RAG.
+    texto_feriados = feriados.feriados_proximos_texto()
+
+    respuesta = llm.generar_respuesta(
+        pregunta, contexto, historial, perfil, avisos=texto_avisos, feriados=texto_feriados
+    )
     print(f"[RAG] Respuesta generada ({len(respuesta)} caracteres).")
 
     return respuesta

@@ -57,6 +57,12 @@ SECCION 2 - DATOS GENERALES DE LA FACULTAD
 ## Cual es el horario de atencion de la FACET? A que hora abre la facultad? Hasta que hora esta abierta la facultad?
 La FACET atiende de lunes a viernes de 7:00 a 21:00 horas.
 
+## Que dias hay clases en la FACET? Que dias se dictan clases? La FACET abre los fines de semana? Hay clases los sabados?
+La FACET dicta clases de lunes a viernes. Los sabados, domingos y feriados
+nacionales no hay clases, salvo que se informe lo contrario. Tambien puede no
+haber actividad academica en fechas puntuales por paros, recesos o cierres
+administrativos, que se comunican por separado.
+
 ## Donde queda la FACET? Cual es la direccion de la facultad? Como llego a la facultad?
 La FACET esta ubicada en Avenida Independencia 1900, San Miguel de Tucuman,
 provincia de Tucuman, Argentina.

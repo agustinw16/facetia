@@ -21,7 +21,7 @@ fecha: para decirle a la IA que dia y hora es en Argentina.
 '''
 from openai import OpenAI
 import config
-from . import fecha 
+from . import fecha
 
 # Cliente OpenAI, creado una vez al importar.
 cliente = OpenAI(api_key=config.OPENAI_API_KEY)
@@ -79,7 +79,7 @@ no te impide usar el calendario semanal comun.
 '''
 
 
-def generar_respuesta(pregunta, contexto, historial=None, perfil=None, avisos=None):
+def generar_respuesta(pregunta, contexto, historial=None, perfil=None, avisos=None, feriados=None):
     '''
     Genera la respuesta del bot usando GPT-4o-mini.
 
@@ -93,8 +93,10 @@ def generar_respuesta(pregunta, contexto, historial=None, perfil=None, avisos=No
                    vacia, el bot funciona igual que antes (sin memoria).
         perfil: (PERFIL) string con instrucciones de trato para ESTE usuario
                    (ej: modo JARVIS). Si es None, el bot responde como siempre.
-        avisos: (AVISOS) texto con los avisos vigentes de la facultad, o None. 
+        avisos: (AVISOS) texto con los avisos vigentes de la facultad, o None.
                 Van SIEMPRE a la IA (no dependen de la busqueda por vectores).
+        feriados: (FERIADOS) texto con los feriados nacionales de los proximos dias,
+                  o None. Igual que avisos, van SIEMPRE a la IA.
     Devuelve:
         string con la respuesta redactada por el modelo.
     '''
@@ -111,9 +113,13 @@ def generar_respuesta(pregunta, contexto, historial=None, perfil=None, avisos=No
         "Usala para interpretar 'hoy', 'mañana', 'esta semana' y para saber si una fecha ya pasó."
     )
 
-    # AVISOS: si hay avisos vigentes, van siempre (no dependen de la busqueda). 
-    if avisos: 
-        instrucciones += f"\n\n{avisos}" 
+    # FERIADOS: si hay feriados nacionales proximos, van siempre (no dependen de la busqueda).
+    if feriados:
+        instrucciones += f"\n\n{feriados}"
+
+    # AVISOS: si hay avisos vigentes, van siempre (no dependen de la busqueda).
+    if avisos:
+        instrucciones += f"\n\n{avisos}"
 
     # PERFIL: si el usuario tiene un perfil especial, lo sumamos AL FINAL del
     # instructivo, para que se lea como una excepcion a las reglas generales.

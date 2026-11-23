@@ -122,6 +122,57 @@ def trocear(texto):
     return chunks
 
 
+def tiene_formato_preguntas(texto):
+    '''
+    Devuelve True si el texto usa el formato "## pregunta" (el de
+    facet_info_general.txt: cada bloque de preguntas y respuesta arranca con
+    "## "). Las paginas scrapeadas de la web y los PDF no usan este formato.
+    '''
+    return any(linea.startswith("## ") for linea in texto.splitlines())
+
+
+def trocear_por_bloques(texto):
+    '''
+    Corta el texto en UN CHUNK POR CADA BLOQUE "## pregunta", sin importar
+    cuantas palabras tenga. Se usa en vez de trocear() para archivos con
+    formato de preguntas y respuesta (ver facet_info_general.txt): ahi, cortar
+    por cantidad de palabras mezclaria varios temas sin relacion en un mismo
+    chunk (ej: horario de atencion + redes sociales + ingreso), diluyendo la
+    busqueda por significado. Cortando por bloque, cada pregunta queda como su
+    propia unidad de busqueda, tal como lo pensaste al escribir el archivo.
+
+    Todo lo que esta ANTES del primer "## " (las instrucciones de
+    mantenimiento, el indice, los encabezados de seccion) se descarta: es para
+    quien edita el archivo, no es informacion para responderle a un estudiante.
+
+    Parametros:
+        texto: string completo del documento.
+
+    Devuelve:
+        lista de strings (un bloque por pregunta).
+    '''
+    bloques = []
+    bloque_actual = []
+
+    for linea in texto.splitlines():
+        if linea.startswith("## "):
+            # Encontramos una pregunta nueva: cerramos el bloque anterior (si habia)
+            # y arrancamos uno nuevo con esta linea.
+            if bloque_actual:
+                bloques.append("\n".join(bloque_actual).strip())
+            bloque_actual = [linea]
+        elif bloque_actual:
+            # Solo acumulamos lineas despues de encontrar el primer "## ":
+            # lo anterior (instrucciones, indice) queda afuera.
+            bloque_actual.append(linea)
+
+    if bloque_actual:
+        bloques.append("\n".join(bloque_actual).strip())
+
+    # Por si quedo algun bloque vacio (no deberia pasar, pero por las dudas).
+    return [b for b in bloques if b]
+
+
 def main():
     '''
     Flujo completo de la ingesta:
@@ -158,9 +209,15 @@ def main():
             print(f"  [SKIP] Sin texto extraible: {archivo.name}")
             continue
 
-        # Troceamos el documento.
-        fragmentos = trocear(texto)
-        print(f"  -> {len(fragmentos)} chunks")
+        # Troceamos el documento. Si tiene formato "## pregunta" (ej:
+        # facet_info_general.txt), un chunk por bloque. Si no (paginas web, PDF),
+        # por cantidad de palabras, como siempre.
+        if tiene_formato_preguntas(texto):
+            fragmentos = trocear_por_bloques(texto)
+            print(f"  -> {len(fragmentos)} chunks (por bloque de pregunta)")
+        else:
+            fragmentos = trocear(texto)
+            print(f"  -> {len(fragmentos)} chunks (por cantidad de palabras)")
 
         if not fragmentos:
             continue
