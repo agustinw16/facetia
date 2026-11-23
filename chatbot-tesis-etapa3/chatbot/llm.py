@@ -17,10 +17,11 @@ del webhook: "dame pregunta + contexto, te devuelvo texto".
 '''
 openai: el SDK. Usamos el mismo cliente que para embeddings, pero el metodo chat.completions.
 config: para leer la API key y el nombre del modelo LLM.
+fecha: para decirle a la IA que dia y hora es en Argentina.
 '''
 from openai import OpenAI
 import config
-
+from . import fecha 
 
 # Cliente OpenAI, creado una vez al importar.
 cliente = OpenAI(api_key=config.OPENAI_API_KEY)
@@ -85,14 +86,25 @@ def generar_respuesta(pregunta, contexto, historial=None, perfil=None):
     '''
     # La API de chat recibe una LISTA de mensajes con roles. La armamos por partes.
 
-    # 1) El instructivo fijo del bot, siempre primero.
+        # 1) El instructivo fijo del bot, siempre primero.
+    instrucciones = SYSTEM_PROMPT
+
+    # FECHA: le decimos a la IA que dia y hora es en Argentina.
+    #    Sin esto no puede interpretar "hoy", "mañana" o "esta semana".
+    #    "+=" significa "agregale al final": instrucciones = instrucciones + ...
+    instrucciones += (
+        f"\n\nFECHA Y HORA ACTUAL: {fecha.fecha_actual_texto()} (hora de Argentina). "
+        "Usala para interpretar 'hoy', 'mañana', 'esta semana' y para saber si una fecha ya pasó."
+    )
+
     #    PERFIL: si el usuario tiene un perfil especial, lo sumamos AL FINAL del
     #    instructivo, para que se lea como una excepcion a las reglas generales.
     #    El SYSTEM_PROMPT original queda intacto para todos los demas usuarios.
-    instrucciones = SYSTEM_PROMPT
     if perfil:
-        instrucciones = f"{SYSTEM_PROMPT}\n\n{perfil}"
+        instrucciones += f"\n\n{perfil}"
+
     mensajes = [{"role": "system", "content": instrucciones}]
+
 
     # 2) La conversacion previa, si la hay.
     #    Traducimos nuestro vocabulario neutro al de OpenAI:
